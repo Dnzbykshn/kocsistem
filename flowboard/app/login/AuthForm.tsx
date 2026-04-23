@@ -211,13 +211,6 @@ export function AuthForm({ mode }: Props) {
           <MiniBoardPreview />
         </div>
       </div>
-
-      <style jsx>{`
-        @media (max-width: 900px) {
-          .auth-grid { grid-template-columns: 1fr !important; }
-          .auth-aside { display: none !important; }
-        }
-      `}</style>
     </div>
   );
 }

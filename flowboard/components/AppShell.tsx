@@ -359,47 +359,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {archiveBoardId && (
         <SprintArchiveModal boardId={archiveBoardId} onClose={() => setArchiveBoardId(null)} />
       )}
-
-      <style jsx>{`
-        .mobile-bar {
-          display: none;
-        }
-        .mobile-only {
-          display: none;
-        }
-        @media (max-width: 720px) {
-          .mobile-bar {
-            display: flex;
-            position: sticky;
-            top: 0;
-            z-index: 70;
-            background: var(--surface);
-            border-bottom: 1px solid var(--line);
-            padding: 10px 14px;
-            gap: 10px;
-            align-items: center;
-            width: 100%;
-          }
-          .mobile-only {
-            display: block;
-          }
-          .sidebar {
-            position: fixed !important;
-            top: 0;
-            left: 0;
-            z-index: 100;
-            transform: translateX(-100%);
-            transition: transform 0.2s !important;
-            width: 260px !important;
-          }
-          .sidebar.mobile-open {
-            transform: translateX(0);
-          }
-          main {
-            width: 100%;
-          }
-        }
-      `}</style>
     </div>
   );
 }

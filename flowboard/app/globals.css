@@ -162,3 +162,49 @@ a { color: inherit; text-decoration: none; }
     --card-gap: 7px;
   }
 }
+
+/* AppShell Layout & Mobile */
+.mobile-bar {
+  display: none;
+}
+.mobile-only {
+  display: none;
+}
+@media (max-width: 720px) {
+  .mobile-bar {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 70;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 14px;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+  }
+  .mobile-only {
+    display: block;
+  }
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.2s !important;
+    width: 260px !important;
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  main {
+    width: 100%;
+  }
+}
+
+/* Auth Layout */
+@media (max-width: 900px) {
+  .auth-grid { grid-template-columns: 1fr !important; }
+  .auth-aside { display: none !important; }
+}
