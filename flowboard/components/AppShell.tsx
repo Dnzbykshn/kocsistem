@@ -10,6 +10,7 @@ import { useBoards } from "@/hooks/useBoards";
 import { logoutAction } from "@/app/login/actions";
 import { useQueryClient } from "@tanstack/react-query";
 import { TweaksPanel } from "./TweaksPanel";
+import { SprintArchiveModal } from "@/app/board/[id]/SprintArchiveModal";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: me } = useMe();
@@ -17,11 +18,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [tweaksOpen, setTweaksOpen] = useState(false);
+  const [archiveBoardId, setArchiveBoardId] = useState<string | null>(null);
 
   // Extract boardId when on a board page
   const boardIdMatch = pathname.match(/^\/board\/([\w-]+)/);
   const currentBoardId = boardIdMatch ? boardIdMatch[1] : null;
   const qc = useQueryClient();
+
+  // Listen for sprint archive event globally
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { boardId: id } = (e as CustomEvent).detail;
+      setArchiveBoardId(id);
+    };
+    window.addEventListener("open-sprint-archive", handler);
+    return () => window.removeEventListener("open-sprint-archive", handler);
+  }, []);
 
   // ⌘B toggles sidebar
   useEffect(() => {
@@ -181,7 +193,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               onClick={() => setMobileOpen(false)}
             />
 
-            {currentBoardId && (
+            {!currentBoardId ? (
+              <Menu
+                align="start"
+                trigger={({ setOpen }) => (
+                  <NavButton
+                    icon={I.archive}
+                    label="Sprint Archive"
+                    onClick={() => setOpen((o) => !o)}
+                  />
+                )}
+              >
+                {boards.length > 0 ? (
+                  boards.map((b) => (
+                    <MenuItem
+                      key={b.id}
+                      onClick={() => {
+                        setMobileOpen(false);
+                        window.dispatchEvent(
+                          new CustomEvent("open-sprint-archive", { detail: { boardId: b.id } })
+                        );
+                      }}
+                    >
+                      {b.title}
+                    </MenuItem>
+                  ))
+                ) : (
+                  <div style={{ padding: "8px 12px", fontSize: 12, color: "var(--ink-4)" }}>
+                    No boards found
+                  </div>
+                )}
+              </Menu>
+            ) : (
               <NavButton
                 icon={I.archive}
                 label="Sprint Archive"
@@ -297,6 +340,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
         {children}
       </main>
+
+      {archiveBoardId && (
+        <SprintArchiveModal boardId={archiveBoardId} onClose={() => setArchiveBoardId(null)} />
+      )}
 
       <style jsx>{`
         .mobile-bar {

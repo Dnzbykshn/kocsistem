@@ -12,8 +12,6 @@ import { KanbanBoard } from "./KanbanBoard";
 import { CardModal } from "./CardModal";
 import { BoardMembersModal } from "./BoardMembersModal";
 import { BoardLabelsModal } from "./BoardLabelsModal";
-import { SprintArchiveModal } from "./SprintArchiveModal";
-
 export function BoardScreen({ boardId }: { boardId: string }) {
   const router = useRouter();
   const { data: me } = useMe();
@@ -27,7 +25,6 @@ export function BoardScreen({ boardId }: { boardId: string }) {
   const [openCardId, setOpenCardId] = useState<string | null>(null);
   const [managingMembers, setManagingMembers] = useState(false);
   const [managingLabels, setManagingLabels] = useState(false);
-  const [showArchive, setShowArchive] = useState(false);
   const [showSprintDialog, setShowSprintDialog] = useState(false);
 
   // Sprint hooks
@@ -39,16 +36,6 @@ export function BoardScreen({ boardId }: { boardId: string }) {
   useEffect(() => {
     setQuery("");
     setLabelFilters([]);
-  }, [boardId]);
-
-  // Listen for sidebar archive button event
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const { boardId: id } = (e as CustomEvent).detail;
-      if (id === boardId) setShowArchive(true);
-    };
-    window.addEventListener("open-sprint-archive", handler);
-    return () => window.removeEventListener("open-sprint-archive", handler);
   }, [boardId]);
 
   const filteredCards = useMemo(() => {
@@ -159,7 +146,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
           <Button size="sm" variant="default" onClick={() => setManagingLabels(true)}>
             {I.filter} Labels
           </Button>
-          <Button size="sm" variant="default" onClick={() => setShowArchive(true)}>
+          <Button size="sm" variant="default" onClick={() => window.dispatchEvent(new CustomEvent("open-sprint-archive", { detail: { boardId } }))}>
             {I.archive} Archive
           </Button>
           {me?.is_admin && (
@@ -299,10 +286,6 @@ export function BoardScreen({ boardId }: { boardId: string }) {
           labels={labels}
           onClose={() => setManagingLabels(false)}
         />
-      )}
-
-      {showArchive && (
-        <SprintArchiveModal boardId={boardId} onClose={() => setShowArchive(false)} />
       )}
 
       {showSprintDialog && (
