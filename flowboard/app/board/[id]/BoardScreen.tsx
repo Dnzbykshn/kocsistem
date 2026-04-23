@@ -1,21 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { Button, Input, AvatarStack, InlineEdit, Menu, MenuItem, Chip } from "@/components/ui";
 import { I } from "@/components/Icons";
 import { useMe } from "@/hooks/useMe";
 import { useBoard, useUpdateColumn } from "@/hooks/useBoard";
-import { useUpdateBoard } from "@/hooks/useBoards";
+import { useUpdateBoard, useDeleteBoard } from "@/hooks/useBoards";
 import { KanbanBoard } from "./KanbanBoard";
 import { CardModal } from "./CardModal";
 import { BoardMembersModal } from "./BoardMembersModal";
 
 export function BoardScreen({ boardId }: { boardId: string }) {
+  const router = useRouter();
   const { data: me } = useMe();
   const { data, isLoading } = useBoard(boardId);
   const toggleStar = useUpdateBoard();
   const updateBoard = useUpdateBoard();
+  const deleteBoard = useDeleteBoard();
   const updateColumn = useUpdateColumn(boardId);
   const [query, setQuery] = useState("");
   const [labelFilters, setLabelFilters] = useState<string[]>([]);
@@ -114,9 +117,25 @@ export function BoardScreen({ boardId }: { boardId: string }) {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <AvatarStack users={memberProfiles} size={24} max={4} />
           {me?.is_admin && (
-            <Button size="sm" variant="default" onClick={() => setManagingMembers(true)}>
-              {I.users} Üyeler
-            </Button>
+            <>
+              <Button size="sm" variant="default" onClick={() => setManagingMembers(true)}>
+                {I.users} Üyeler
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={() => {
+                  if (confirm("Bu panoyu silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
+                    deleteBoard.mutate(boardId, {
+                      onSuccess: () => router.push("/")
+                    });
+                  }
+                }}
+                title="Panoyu Sil"
+              >
+                {I.trash}
+              </Button>
+            </>
           )}
         </div>
       </div>

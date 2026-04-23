@@ -67,7 +67,7 @@ export async function updateBoard(
 }
 
 export async function deleteBoard(boardId: string) {
-  await requireUser();
+  await requireAdmin();
   await db`DELETE FROM boards WHERE id = ${boardId}`;
 }
 
