@@ -249,7 +249,7 @@ export function Menu({
   align = "start",
 }: {
   trigger: (p: MenuRenderProps) => ReactNode;
-  children: ReactNode;
+  children: ReactNode | ((p: MenuRenderProps) => ReactNode);
   align?: "start" | "end";
 }) {
   const [open, setOpen] = useState(false);
@@ -279,9 +279,14 @@ export function Menu({
             padding: 6,
             zIndex: 80,
           } as CSSProperties}
-          onClick={() => setOpen(false)}
+          onClick={(e) => {
+            // Only close if clicking outside of the buttons (or let buttons handle it)
+            // Actually, we don't need this onClick to blindly setOpen(false) because e.stopPropagation() is used in buttons.
+            // But leaving it as is.
+            setOpen(false);
+          }}
         >
-          {children}
+          {typeof children === "function" ? children({ open, setOpen }) : children}
         </div>
       )}
     </div>

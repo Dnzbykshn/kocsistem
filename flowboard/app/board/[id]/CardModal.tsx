@@ -419,16 +419,24 @@ export function CardModal({ cardId, boardId, boardMembers, allLabels, columns, o
                 </SideBtn>
               )}
             >
-              {boardMembers.map((u) => {
+              {({ setOpen }) => boardMembers.map((u) => {
                 const on = card.assignees.some((a) => a.id === u.id);
+                const disabled = !on && card.assignees.length >= 1;
                 return (
                   <button
                     key={u.id}
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (disabled) return;
                       toggleAssignee.mutate({ cardId, userId: u.id, on: !on });
+                      setOpen(false);
                     }}
-                    style={popoverItem}
+                    style={{
+                      ...popoverItem,
+                      opacity: disabled ? 0.5 : 1,
+                      cursor: disabled ? "not-allowed" : "pointer"
+                    }}
+                    disabled={disabled}
                   >
                     <Avatar user={u} size={22} />
                     <span style={{ flex: 1 }}>{u.name}</span>
@@ -445,7 +453,7 @@ export function CardModal({ cardId, boardId, boardMembers, allLabels, columns, o
                 </SideBtn>
               )}
             >
-              {boardMembers.map((u) => {
+              {({ setOpen }) => boardMembers.map((u) => {
                 const on = card.watchers.some((w) => w.id === u.id);
                 return (
                   <button
@@ -453,6 +461,7 @@ export function CardModal({ cardId, boardId, boardMembers, allLabels, columns, o
                     onClick={(e) => {
                       e.stopPropagation();
                       toggleWatcher.mutate({ cardId, userId: u.id, on: !on });
+                      setOpen(false);
                     }}
                     style={popoverItem}
                   >
