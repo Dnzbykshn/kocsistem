@@ -214,7 +214,12 @@ export function KanbanBoard({
             labels={labels}
             users={users}
             actorId={actorId}
-            onAddCard={(title) => addCard.mutate({ columnId: col.id, title, actorId })}
+            onAddCard={(title) => 
+              addCard.mutate(
+                { columnId: col.id, title, actorId },
+                { onSuccess: (newCardId) => onOpenCard(newCardId) }
+              )
+            }
             onUpdateColumn={(patch) => onUpdateColumn(col.id, patch)}
             onDeleteColumn={() => {
               if (
@@ -457,6 +462,9 @@ function ColumnView({
               autoFocus
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
+              onBlur={() => {
+                if (!newTitle.trim()) setAdding(false);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -635,6 +643,9 @@ function AddColumn({ onAdd }: { onAdd: (title: string) => void }) {
         autoFocus
         value={title}
         onChange={(e) => setTitle(e.target.value)}
+        onBlur={() => {
+          if (!title.trim()) setAdding(false);
+        }}
         placeholder="Column title"
         onKeyDown={(e) => {
           if (e.key === "Escape") {
