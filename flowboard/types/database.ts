@@ -50,6 +50,8 @@ export interface Database {
           owner_id: string;
           starred: boolean;
           created_at: string;
+          started_at: string | null;
+          estimated_finished_at: string | null;
         };
         Insert: {
           id?: string;
@@ -57,8 +59,10 @@ export interface Database {
           color?: string;
           owner_id: string;
           starred?: boolean;
+          started_at?: string | null;
+          estimated_finished_at?: string | null;
         };
-        Update: Partial<{ title: string; color: string; starred: boolean }>;
+        Update: Partial<{ title: string; color: string; starred: boolean; started_at: string | null; estimated_finished_at: string | null }>;
       };
       board_members: {
         Row: {

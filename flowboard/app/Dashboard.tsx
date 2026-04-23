@@ -17,6 +17,8 @@ export function Dashboard() {
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [newStarted, setNewStarted] = useState("");
+  const [newFinished, setNewFinished] = useState("");
 
   const filtered = boards.filter(
     (b) => !query || b.title.toLowerCase().includes(query.toLowerCase())
@@ -28,10 +30,17 @@ export function Dashboard() {
     e.preventDefault();
     if (!newTitle.trim() || !me) return;
     createBoard.mutate(
-      { title: newTitle.trim(), ownerId: me.id },
+      {
+        title: newTitle.trim(),
+        ownerId: me.id,
+        started_at: newStarted || null,
+        estimated_finished_at: newFinished || null,
+      },
       {
         onSuccess: () => {
           setNewTitle("");
+          setNewStarted("");
+          setNewFinished("");
           setAdding(false);
         },
       }
@@ -115,11 +124,11 @@ export function Dashboard() {
               background: "var(--surface)",
               border: "1px solid var(--line-strong)",
               borderRadius: 12,
-              padding: 14,
+              padding: 16,
               marginBottom: 24,
               display: "flex",
-              gap: 10,
-              alignItems: "center",
+              flexDirection: "column",
+              gap: 12,
               boxShadow: "var(--shadow-md)",
             }}
           >
@@ -129,19 +138,66 @@ export function Dashboard() {
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
             />
-            <Button variant="primary" type="submit" disabled={createBoard.isPending}>
-              {createBoard.isPending ? "…" : "Create"}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setAdding(false);
-                setNewTitle("");
-              }}
-            >
-              Cancel
-            </Button>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".06em" }}>
+                  Start date
+                </label>
+                <input
+                  type="date"
+                  value={newStarted}
+                  onChange={(e) => setNewStarted(e.target.value)}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 7,
+                    border: "1px solid var(--line-strong)",
+                    background: "var(--surface)",
+                    color: "var(--ink)",
+                    fontSize: 13,
+                    outline: "none",
+                    fontFamily: "var(--font-sans)",
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".06em" }}>
+                  Est. finish date
+                </label>
+                <input
+                  type="date"
+                  value={newFinished}
+                  onChange={(e) => setNewFinished(e.target.value)}
+                  min={newStarted || undefined}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 7,
+                    border: "1px solid var(--line-strong)",
+                    background: "var(--surface)",
+                    color: "var(--ink)",
+                    fontSize: 13,
+                    outline: "none",
+                    fontFamily: "var(--font-sans)",
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 8, marginLeft: "auto", alignSelf: "flex-end" }}>
+                <Button variant="primary" type="submit" disabled={createBoard.isPending}>
+                  {createBoard.isPending ? "…" : "Create"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setAdding(false);
+                    setNewTitle("");
+                    setNewStarted("");
+                    setNewFinished("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
           </form>
         )}
 

@@ -25,13 +25,15 @@ export async function createBoard(args: {
   title: string;
   ownerId?: string;
   color?: string;
+  started_at?: string | null;
+  estimated_finished_at?: string | null;
 }): Promise<string> {
   const userId = await requireAdmin();
   const color = args.color ?? "#5B5BF5";
 
   const rows = await db`
-    INSERT INTO boards (title, owner_id, color)
-    VALUES (${args.title}, ${userId}, ${color})
+    INSERT INTO boards (title, owner_id, color, started_at, estimated_finished_at)
+    VALUES (${args.title}, ${userId}, ${color}, ${args.started_at ?? null}, ${args.estimated_finished_at ?? null})
     RETURNING id
   `;
   const boardId = rows[0].id as string;
@@ -53,16 +55,17 @@ export async function createBoard(args: {
 
 export async function updateBoard(
   boardId: string,
-  patch: { title?: string; color?: string; starred?: boolean }
+  patch: { title?: string; color?: string; starred?: boolean; started_at?: string | null; estimated_finished_at?: string | null }
 ) {
   await requireUser();
   const fields = Object.entries(patch).filter(([, v]) => v !== undefined);
   if (!fields.length) return;
-  // Build dynamic update using raw SQL per field
   for (const [key, value] of fields) {
-    if (key === "title")   await db`UPDATE boards SET title   = ${value as string}  WHERE id = ${boardId}`;
-    if (key === "color")   await db`UPDATE boards SET color   = ${value as string}  WHERE id = ${boardId}`;
-    if (key === "starred") await db`UPDATE boards SET starred = ${value as boolean} WHERE id = ${boardId}`;
+    if (key === "title")                  await db`UPDATE boards SET title                  = ${value as string}  WHERE id = ${boardId}`;
+    if (key === "color")                  await db`UPDATE boards SET color                  = ${value as string}  WHERE id = ${boardId}`;
+    if (key === "starred")                await db`UPDATE boards SET starred                = ${value as boolean} WHERE id = ${boardId}`;
+    if (key === "started_at")             await db`UPDATE boards SET started_at             = ${(value ?? null) as string | null} WHERE id = ${boardId}`;
+    if (key === "estimated_finished_at")  await db`UPDATE boards SET estimated_finished_at  = ${(value ?? null) as string | null} WHERE id = ${boardId}`;
   }
 }
 

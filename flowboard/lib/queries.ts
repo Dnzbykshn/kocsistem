@@ -294,6 +294,8 @@ export interface BoardWithSprints {
   color: string;
   starred: boolean;
   created_at: string;
+  started_at: string | null;
+  estimated_finished_at: string | null;
   sprints: Sprint[];
 }
 
@@ -301,7 +303,7 @@ export async function listBoardsWithSprints(): Promise<BoardWithSprints[]> {
   const session = await auth();
   if (!session?.user?.id) return [];
   const rows = await db`
-    SELECT b.id, b.title, b.color, b.starred, b.created_at,
+    SELECT b.id, b.title, b.color, b.starred, b.created_at, b.started_at, b.estimated_finished_at,
       COALESCE(
         json_agg(
           json_build_object(
@@ -318,7 +320,7 @@ export async function listBoardsWithSprints(): Promise<BoardWithSprints[]> {
     FROM boards b
     JOIN board_members bm ON bm.board_id = b.id AND bm.user_id = ${session.user.id}
     LEFT JOIN sprints s ON s.board_id = b.id
-    GROUP BY b.id, b.title, b.color, b.starred, b.created_at
+    GROUP BY b.id, b.title, b.color, b.starred, b.created_at, b.started_at, b.estimated_finished_at
     ORDER BY b.created_at ASC
   `;
   return rows as unknown as BoardWithSprints[];

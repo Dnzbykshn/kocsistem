@@ -6,7 +6,9 @@ import { useBoardsWithSprints } from "@/hooks/useTimeline";
 import type { BoardWithSprints } from "@/lib/queries";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-const DAY_W = 28;       // px per day
+const DAY_W_MIN = 6;
+const DAY_W_DEFAULT = 28;
+const DAY_W_MAX = 120;
 const ROW_H = 72;       // px per board row
 const HEADER_H = 56;    // timeline header height
 const BAR_H = 28;       // main board bar height
@@ -14,6 +16,9 @@ const BAR_TOP = 16;     // y offset of bar within row
 const SPRINT_H = 8;     // sprint segment height
 const SPRINT_TOP = BAR_TOP + BAR_H + 6; // below the main bar
 const LABELS_W = 220;   // frozen left label column width
+
+// Zoom steps (px per day)
+const ZOOM_STEPS = [6, 10, 14, 20, 28, 40, 56, 80, 120];
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Connection {
@@ -47,9 +52,9 @@ function diffDays(a: Date, b: Date): number {
   return Math.floor((b.getTime() - a.getTime()) / 86_400_000);
 }
 
-function dateToX(date: Date | string, rangeStart: Date): number {
+function dateToX(date: Date | string, rangeStart: Date, dayW = DAY_W_DEFAULT): number {
   const d = typeof date === "string" ? new Date(date) : date;
-  return diffDays(rangeStart, d) * DAY_W;
+  return diffDays(rangeStart, d) * dayW;
 }
 
 function monthLabel(d: Date): string {
@@ -79,7 +84,7 @@ function useLocalStorage<T>(key: string, init: T): [T, (v: T | ((prev: T) => T))
     (v: T | ((prev: T) => T)) => {
       setVal((prev) => {
         const next = typeof v === "function" ? (v as (p: T) => T)(prev) : v;
-        try { localStorage.setItem(key, JSON.stringify(next)); } catch {}
+        try { localStorage.setItem(key, JSON.stringify(next)); } catch { }
         return next;
       });
     },
@@ -95,40 +100,101 @@ export function TimelineScreen() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
+  const [dayW, setDayW] = useState(DAY_W_DEFAULT);
   const [connections, setConnections] = useLocalStorage<Connection[]>("ksb-timeline-connections", []);
   const [dragging, setDragging] = useState<DragState | null>(null);
   const draggingRef = useRef<DragState | null>(null);
+
+  // Zoom helpers
+  const zoomIdx = ZOOM_STEPS.indexOf(dayW);
+  const canZoomIn = dayW < DAY_W_MAX;
+  const canZoomOut = dayW > DAY_W_MIN;
+
+  const applyZoom = useCallback((newDayW: number) => {
+    const el = scrollRef.current;
+    if (!el) { setDayW(newDayW); return; }
+    // Keep the center date stable
+    const centerRatio = (el.scrollLeft + el.clientWidth / 2) / (el.scrollWidth || 1);
+    setDayW(newDayW);
+    // After re-render, restore center
+    requestAnimationFrame(() => {
+      if (el) el.scrollLeft = centerRatio * el.scrollWidth - el.clientWidth / 2;
+    });
+  }, []);
+
+  const zoomIn = useCallback(() => {
+    const next = ZOOM_STEPS.find((s) => s > dayW) ?? DAY_W_MAX;
+    applyZoom(Math.min(next, DAY_W_MAX));
+  }, [dayW, applyZoom]);
+
+  const zoomOut = useCallback(() => {
+    const next = [...ZOOM_STEPS].reverse().find((s) => s < dayW) ?? DAY_W_MIN;
+    applyZoom(Math.max(next, DAY_W_MIN));
+  }, [dayW, applyZoom]);
+
+  // Ctrl + wheel to zoom
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      // Anchor zoom to mouse X position
+      const rect = el.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const scrollRatioBefore = (el.scrollLeft + mouseX) / (el.scrollWidth || 1);
+
+      setDayW((prev) => {
+        const factor = e.deltaY < 0 ? 1 : -1;
+        const idx = ZOOM_STEPS.findIndex((s) => s >= prev);
+        const nextIdx = Math.max(0, Math.min(ZOOM_STEPS.length - 1, idx - factor));
+        const next = ZOOM_STEPS[nextIdx];
+        // Restore scroll position after render
+        requestAnimationFrame(() => {
+          if (el) el.scrollLeft = scrollRatioBefore * el.scrollWidth - mouseX;
+        });
+        return next;
+      });
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, []);
 
   // ── Time range ──────────────────────────────────────────────────────────────
   const { rangeStart, rangeEnd, totalDays, months } = useMemo(() => {
     const today = startOfDay(new Date());
     let earliest = addDays(today, -180);
+    let latest = addDays(today, 90);
 
     for (const b of boards) {
-      const d = startOfDay(new Date(b.created_at));
+      const d = startOfDay(new Date(b.started_at ?? b.created_at));
       if (d < earliest) earliest = d;
+      if (b.estimated_finished_at) {
+        const fin = startOfDay(new Date(b.estimated_finished_at));
+        if (fin > latest) latest = fin;
+      }
     }
 
     const start = addDays(earliest, -30);
-    const end = addDays(today, 120);
-    const total = diffDays(start, end);
+    const end = addDays(latest, 30);
+    const total = Math.max(diffDays(start, end), 120);
 
     // Build month markers
     const monthMarkers: { label: string; x: number; date: Date }[] = [];
     const cursor = new Date(start);
     cursor.setDate(1);
     while (cursor <= end) {
-      const x = dateToX(cursor, start);
-      if (x >= 0 && x <= total * DAY_W) {
+      const x = dateToX(cursor, start, dayW);
+      if (x >= 0 && x <= total * dayW) {
         monthMarkers.push({ label: monthLabel(cursor), x, date: new Date(cursor) });
       }
       cursor.setMonth(cursor.getMonth() + 1);
     }
 
     return { rangeStart: start, rangeEnd: end, totalDays: total, months: monthMarkers };
-  }, [boards]);
+  }, [boards, dayW]);
 
-  const todayX = dateToX(new Date(), rangeStart);
+  const todayX = dateToX(new Date(), rangeStart, dayW);
 
   // ── Scroll to today on mount ─────────────────────────────────────────────────
   useEffect(() => {
@@ -146,8 +212,8 @@ export function TimelineScreen() {
     const scrollEl = scrollRef.current;
     if (!gridEl || !scrollEl) return;
 
-    const barEndX = Math.min(dateToX(new Date(), rangeStart), dateToX(rangeEnd, rangeStart));
-    const boardEndX = dateToX(new Date(board.created_at), rangeStart) + Math.max(1, diffDays(new Date(board.created_at), new Date())) * DAY_W;
+    const barEndX = Math.min(dateToX(new Date(), rangeStart, dayW), dateToX(rangeEnd, rangeStart, dayW));
+    const boardEndX = dateToX(new Date(board.created_at), rangeStart, dayW) + Math.max(1, diffDays(new Date(board.created_at), new Date())) * dayW;
     const startX = Math.min(boardEndX, barEndX) - scrollEl.scrollLeft;
     const startY = HEADER_H + rowIndex * ROW_H + BAR_TOP + BAR_H / 2;
 
@@ -201,7 +267,7 @@ export function TimelineScreen() {
 
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, [boards, connections, rangeStart, rangeEnd, setConnections]);
+  }, [boards, connections, rangeStart, rangeEnd, setConnections, dayW]);
 
   const removeConnection = useCallback((id: string) => {
     setConnections((prev) => prev.filter((c) => c.id !== id));
@@ -217,23 +283,26 @@ export function TimelineScreen() {
   // ── Connection points ────────────────────────────────────────────────────────
   function getBoardBarEnd(board: BoardWithSprints): { x: number; y: number } {
     const idx = boardIndexMap.get(board.id) ?? 0;
-    const created = new Date(board.created_at);
-    const today = new Date();
-    const endDate = today > created ? today : created;
-    const x = dateToX(endDate, rangeStart);
+    const endDate = board.estimated_finished_at
+      ? new Date(board.estimated_finished_at)
+      : new Date();
+    const x = dateToX(endDate, rangeStart, dayW);
     const y = HEADER_H + idx * ROW_H + BAR_TOP + BAR_H / 2;
     return { x, y };
   }
 
   function getBoardBarStart(board: BoardWithSprints): { x: number; y: number } {
     const idx = boardIndexMap.get(board.id) ?? 0;
-    const x = dateToX(new Date(board.created_at), rangeStart);
+    const startDate = board.started_at
+      ? new Date(board.started_at)
+      : new Date(board.created_at);
+    const x = dateToX(startDate, rangeStart, dayW);
     const y = HEADER_H + idx * ROW_H + BAR_TOP + BAR_H / 2;
     return { x, y };
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
-  const totalW = totalDays * DAY_W;
+  const totalW = totalDays * dayW;
   const totalH = HEADER_H + boards.length * ROW_H;
 
   return (
@@ -255,6 +324,44 @@ export function TimelineScreen() {
         </svg>
         <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-.01em" }}>Timeline</span>
         <div style={{ flex: 1 }} />
+
+        {/* Zoom controls */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4, border: "1px solid var(--line)", borderRadius: 7, overflow: "hidden" }}>
+          <button
+            onClick={zoomOut}
+            disabled={!canZoomOut}
+            title="Zoom out (Ctrl+Scroll)"
+            style={{
+              fontSize: 16, lineHeight: 1, padding: "3px 10px",
+              background: "transparent", border: 0,
+              color: canZoomOut ? "var(--ink-2)" : "var(--ink-4)",
+              cursor: canZoomOut ? "pointer" : "default",
+            }}
+          >−</button>
+          <span
+            onClick={() => applyZoom(DAY_W_DEFAULT)}
+            title="Reset zoom"
+            style={{
+              fontSize: 11, fontWeight: 600, color: "var(--ink-3)",
+              minWidth: 38, textAlign: "center", cursor: "pointer",
+              userSelect: "none",
+            }}
+          >
+            {Math.round((dayW / DAY_W_DEFAULT) * 100)}%
+          </span>
+          <button
+            onClick={zoomIn}
+            disabled={!canZoomIn}
+            title="Zoom in (Ctrl+Scroll)"
+            style={{
+              fontSize: 16, lineHeight: 1, padding: "3px 10px",
+              background: "transparent", border: 0,
+              color: canZoomIn ? "var(--ink-2)" : "var(--ink-4)",
+              cursor: canZoomIn ? "pointer" : "default",
+            }}
+          >+</button>
+        </div>
+
         <button
           onClick={() => {
             const el = scrollRef.current;
@@ -492,6 +599,7 @@ export function TimelineScreen() {
                 board={board}
                 idx={idx}
                 rangeStart={rangeStart}
+                dayW={dayW}
                 onDragStart={(e) => handleDragStart(e, board, idx)}
               />
             ))}
@@ -558,27 +666,40 @@ function BoardBar({
   board,
   idx,
   rangeStart,
+  dayW,
   onDragStart,
 }: {
   board: BoardWithSprints;
   idx: number;
   rangeStart: Date;
+  dayW: number;
   onDragStart: (e: React.MouseEvent) => void;
 }) {
   const today = new Date();
-  const created = new Date(board.created_at);
-  const barStart = created < today ? created : today;
-  const barEnd = today > created ? today : created;
 
-  const x = dateToX(barStart, rangeStart);
-  const w = Math.max(DAY_W, diffDays(barStart, barEnd) * DAY_W);
+  // Use explicit dates if set, otherwise fall back to created_at → today
+  const barStart = board.started_at
+    ? new Date(board.started_at)
+    : new Date(board.created_at);
+  const barEnd = board.estimated_finished_at
+    ? new Date(board.estimated_finished_at)
+    : today;
+
+  const x = dateToX(barStart, rangeStart, dayW);
+  const w = Math.max(dayW, diffDays(barStart, barEnd) * dayW);
   const top = HEADER_H + idx * ROW_H;
+
+  // Progress: how far today is within the bar (0–1), for visual overlay
+  const totalSpan = diffDays(barStart, barEnd);
+  const elapsed = diffDays(barStart, today);
+  const progress = totalSpan > 0 ? Math.min(1, Math.max(0, elapsed / totalSpan)) : 0;
+  const isPast = today > barEnd;
 
   return (
     <div style={{ position: "absolute", top, left: 0, width: "100%", height: ROW_H, zIndex: 4 }}>
       {/* Main board bar */}
       <div
-        title={board.title}
+        title={`${board.title}${board.estimated_finished_at ? ` · Due ${new Date(board.estimated_finished_at).toLocaleDateString()}` : ""}`}
         style={{
           position: "absolute",
           left: x,
@@ -586,26 +707,58 @@ function BoardBar({
           width: w,
           height: BAR_H,
           borderRadius: 7,
-          background: board.color,
-          opacity: 0.85,
-          display: "flex",
-          alignItems: "center",
-          paddingLeft: 10,
+          background: isPast
+            ? `color-mix(in oklab, ${board.color} 60%, #888)`
+            : board.color,
+          opacity: 0.88,
           overflow: "hidden",
           boxShadow: "0 1px 3px rgba(0,0,0,.15)",
         }}
       >
-        <span style={{
-          fontSize: 12,
-          fontWeight: 600,
-          color: "#fff",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          pointerEvents: "none",
+        {/* Progress fill */}
+        {progress > 0 && progress < 1 && (
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            width: `${progress * 100}%`,
+            background: "rgba(255,255,255,.18)",
+            borderRadius: "7px 0 0 7px",
+            pointerEvents: "none",
+          }} />
+        )}
+        {/* Label */}
+        <div style={{
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          height: "100%",
+          paddingLeft: 10,
+          paddingRight: 24,
+          gap: 8,
         }}>
-          {board.title}
-        </span>
+          <span style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#fff",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            pointerEvents: "none",
+          }}>
+            {board.title}
+          </span>
+          {board.estimated_finished_at && (
+            <span style={{
+              fontSize: 10.5,
+              color: "rgba(255,255,255,.75)",
+              whiteSpace: "nowrap",
+              pointerEvents: "none",
+              flexShrink: 0,
+            }}>
+              {new Date(board.estimated_finished_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Sprint segments */}
@@ -613,8 +766,8 @@ function BoardBar({
         if (!sprint.started_at) return null;
         const sStart = new Date(sprint.started_at);
         const sEnd = sprint.ended_at ? new Date(sprint.ended_at) : today;
-        const sx = dateToX(sStart, rangeStart);
-        const sw = Math.max(DAY_W / 2, diffDays(sStart, sEnd) * DAY_W);
+        const sx = dateToX(sStart, rangeStart, dayW);
+        const sw = Math.max(dayW / 2, diffDays(sStart, sEnd) * dayW);
         const isActive = sprint.status === "active";
         return (
           <div

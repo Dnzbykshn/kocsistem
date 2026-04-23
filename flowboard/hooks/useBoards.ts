@@ -26,9 +26,12 @@ export function useRecentActivity(limit = 8) {
 export function useCreateBoard() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (args: { title: string; ownerId?: string; color?: string }) =>
+    mutationFn: (args: { title: string; ownerId?: string; color?: string; started_at?: string | null; estimated_finished_at?: string | null }) =>
       createBoard(args),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["boards"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["boards"] });
+      qc.invalidateQueries({ queryKey: ["boards-with-sprints"] });
+    },
   });
 }
 
@@ -51,6 +54,7 @@ export function useUpdateBoard() {
     onSettled: (_d, _e, vars) => {
       qc.invalidateQueries({ queryKey: ["boards"] });
       qc.invalidateQueries({ queryKey: ["board", vars.boardId] });
+      qc.invalidateQueries({ queryKey: ["boards-with-sprints"] });
     },
   });
 }
