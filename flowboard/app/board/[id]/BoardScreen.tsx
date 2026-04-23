@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { Button, Input, AvatarStack, InlineEdit, Menu, MenuItem, Chip } from "@/components/ui";
+import { dueState } from "@/lib/utils";
+import type { Profile, Column as ColumnType } from "@/types/domain";
 import { I } from "@/components/Icons";
 import { useMe } from "@/hooks/useMe";
 import { useBoard, useUpdateColumn, useActiveSprint, useStartSprint, useCompleteSprint } from "@/hooks/useBoard";
@@ -16,6 +18,7 @@ import { BoardLabelsModal } from "./BoardLabelsModal";
 
 type ViewMode = "kanban" | "list";
 type Priority = "high" | "med" | "low";
+type DueDateFilter = "overdue" | "soon" | "has_date" | "no_date";
 
 export function BoardScreen({ boardId }: { boardId: string }) {
   const router = useRouter();
@@ -31,6 +34,9 @@ export function BoardScreen({ boardId }: { boardId: string }) {
   const [query, setQuery] = useState("");
   const [labelFilters, setLabelFilters] = useState<string[]>([]);
   const [priorityFilters, setPriorityFilters] = useState<Priority[]>([]);
+  const [assigneeFilters, setAssigneeFilters] = useState<string[]>([]);
+  const [dueDateFilters, setDueDateFilters] = useState<DueDateFilter[]>([]);
+  const [columnFilters, setColumnFilters] = useState<string[]>([]);
   const [openCardId, setOpenCardId] = useState<string | null>(null);
   const [managingMembers, setManagingMembers] = useState(false);
   const [managingLabels, setManagingLabels] = useState(false);
@@ -46,6 +52,9 @@ export function BoardScreen({ boardId }: { boardId: string }) {
     setQuery("");
     setLabelFilters([]);
     setPriorityFilters([]);
+    setAssigneeFilters([]);
+    setDueDateFilters([]);
+    setColumnFilters([]);
   }, [boardId]);
 
   const togglePriority = (p: Priority) =>
@@ -63,9 +72,22 @@ export function BoardScreen({ boardId }: { boardId: string }) {
         return false;
       if (labelFilters.length && !c.labels.some((l) => labelFilters.includes(l))) return false;
       if (priorityFilters.length && !priorityFilters.includes((c.priority ?? "") as Priority)) return false;
+      if (assigneeFilters.length && !c.assignees.some((a) => assigneeFilters.includes(a))) return false;
+      if (columnFilters.length && !columnFilters.includes(c.column_id)) return false;
+      if (dueDateFilters.length) {
+        const ds = dueState(c.due_at);
+        const match = dueDateFilters.some((f) => {
+          if (f === "overdue") return ds === "overdue";
+          if (f === "soon") return ds === "soon";
+          if (f === "has_date") return !!c.due_at;
+          if (f === "no_date") return !c.due_at;
+          return false;
+        });
+        if (!match) return false;
+      }
       return true;
     });
-  }, [data, query, labelFilters, priorityFilters]);
+  }, [data, query, labelFilters, priorityFilters, assigneeFilters, dueDateFilters, columnFilters]);
 
   if (isLoading) {
     return (
@@ -281,10 +303,19 @@ export function BoardScreen({ boardId }: { boardId: string }) {
         {/* Priority filter */}
         <PriorityFilter value={priorityFilters} onChange={setPriorityFilters} onToggle={togglePriority} />
 
+        {/* Assignee filter */}
+        <AssigneeFilter users={memberProfiles} value={assigneeFilters} onChange={setAssigneeFilters} />
+
+        {/* Due date filter */}
+        <DueDateFilterMenu value={dueDateFilters} onChange={setDueDateFilters} />
+
+        {/* Column filter */}
+        <ColumnFilter columns={columns} value={columnFilters} onChange={setColumnFilters} />
+
         {/* Active filter chips */}
-        {(labelFilters.length > 0 || priorityFilters.length > 0 || query) && (
+        {(labelFilters.length > 0 || priorityFilters.length > 0 || assigneeFilters.length > 0 || dueDateFilters.length > 0 || columnFilters.length > 0 || query) && (
           <button
-            onClick={() => { setQuery(""); setLabelFilters([]); setPriorityFilters([]); }}
+            onClick={() => { setQuery(""); setLabelFilters([]); setPriorityFilters([]); setAssigneeFilters([]); setDueDateFilters([]); setColumnFilters([]); }}
             style={{
               background: "transparent", border: "none", cursor: "pointer",
               fontSize: 11.5, color: "var(--ink-4)", textDecoration: "underline", padding: "0 2px",
@@ -631,6 +662,205 @@ function LabelFilter({
           <>
             <div style={{ height: 1, background: "var(--line)", margin: "4px 0" }} />
             <MenuItem onClick={() => onChange([])}>Clear filters</MenuItem>
+          </>
+        )}
+      </div>
+    </Menu>
+  );
+}
+
+function AssigneeFilter({
+  users,
+  value,
+  onChange,
+}: {
+  users: Profile[];
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const toggle = (id: string) => {
+    onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+  };
+
+  return (
+    <Menu
+      trigger={({ setOpen }) => (
+        <Button size="sm" variant="default" onClick={() => setOpen((o) => !o)}>
+          {I.user}
+          Assignee{" "}
+          {value.length > 0 && (
+            <Chip color="var(--accent)" style={{ marginLeft: 4 }}>
+              {value.length}
+            </Chip>
+          )}
+        </Button>
+      )}
+    >
+      <div style={{ padding: "4px", minWidth: 180 }}>
+        {users.length === 0 && (
+          <div style={{ padding: "8px 10px", fontSize: 12, color: "var(--ink-4)" }}>
+            No members yet
+          </div>
+        )}
+        {users.map((u) => {
+          const on = value.includes(u.id);
+          return (
+            <button
+              key={u.id}
+              onClick={(e) => { e.stopPropagation(); toggle(u.id); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                width: "100%", textAlign: "left", padding: "6px 8px",
+                borderRadius: 6, border: 0,
+                background: on ? "var(--surface-2)" : "transparent",
+                fontSize: 13, cursor: "pointer", color: "var(--ink)",
+              }}
+            >
+              <span
+                style={{
+                  width: 22, height: 22, borderRadius: "50%",
+                  background: u.color, display: "flex", alignItems: "center",
+                  justifyContent: "center", fontSize: 10, fontWeight: 700,
+                  color: "#fff", flexShrink: 0,
+                }}
+              >
+                {u.initials}
+              </span>
+              <span style={{ flex: 1 }}>{u.name}</span>
+              {on && <span style={{ color: "var(--accent)" }}>{I.check}</span>}
+            </button>
+          );
+        })}
+        {value.length > 0 && (
+          <>
+            <div style={{ height: 1, background: "var(--line)", margin: "4px 0" }} />
+            <MenuItem onClick={() => onChange([])}>Clear</MenuItem>
+          </>
+        )}
+      </div>
+    </Menu>
+  );
+}
+
+const DUE_DATE_OPTIONS: { value: DueDateFilter; label: string; color: string }[] = [
+  { value: "overdue", label: "Overdue",    color: "var(--err)" },
+  { value: "soon",    label: "Due Soon",   color: "var(--warn)" },
+  { value: "has_date", label: "Has Date",  color: "var(--accent)" },
+  { value: "no_date", label: "No Date",    color: "var(--ink-4)" },
+];
+
+function DueDateFilterMenu({
+  value,
+  onChange,
+}: {
+  value: DueDateFilter[];
+  onChange: (v: DueDateFilter[]) => void;
+}) {
+  const toggle = (f: DueDateFilter) => {
+    onChange(value.includes(f) ? value.filter((x) => x !== f) : [...value, f]);
+  };
+
+  return (
+    <Menu
+      trigger={({ setOpen }) => (
+        <Button size="sm" variant="default" onClick={() => setOpen((o) => !o)}>
+          {I.calendar}
+          Due Date{" "}
+          {value.length > 0 && (
+            <Chip color="var(--accent)" style={{ marginLeft: 4 }}>
+              {value.length}
+            </Chip>
+          )}
+        </Button>
+      )}
+    >
+      <div style={{ padding: "4px", minWidth: 160 }}>
+        {DUE_DATE_OPTIONS.map(({ value: f, label, color }) => {
+          const on = value.includes(f);
+          return (
+            <button
+              key={f}
+              onClick={(e) => { e.stopPropagation(); toggle(f); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                width: "100%", textAlign: "left", padding: "6px 8px",
+                borderRadius: 6, border: 0,
+                background: on ? "var(--surface-2)" : "transparent",
+                fontSize: 13, cursor: "pointer", color: "var(--ink)",
+              }}
+            >
+              <span style={{ width: 9, height: 9, borderRadius: "50%", background: color, flexShrink: 0 }} />
+              <span style={{ flex: 1 }}>{label}</span>
+              {on && <span style={{ color: "var(--accent)" }}>{I.check}</span>}
+            </button>
+          );
+        })}
+        {value.length > 0 && (
+          <>
+            <div style={{ height: 1, background: "var(--line)", margin: "4px 0" }} />
+            <MenuItem onClick={() => onChange([])}>Clear</MenuItem>
+          </>
+        )}
+      </div>
+    </Menu>
+  );
+}
+
+function ColumnFilter({
+  columns,
+  value,
+  onChange,
+}: {
+  columns: ColumnType[];
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const toggle = (id: string) => {
+    onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+  };
+
+  return (
+    <Menu
+      trigger={({ setOpen }) => (
+        <Button size="sm" variant="default" onClick={() => setOpen((o) => !o)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="5" height="18" rx="1.5" />
+            <rect x="10" y="3" width="5" height="18" rx="1.5" />
+            <rect x="17" y="3" width="5" height="18" rx="1.5" />
+          </svg>
+          Column{" "}
+          {value.length > 0 && (
+            <Chip color="var(--accent)" style={{ marginLeft: 4 }}>
+              {value.length}
+            </Chip>
+          )}
+        </Button>
+      )}
+    >
+      <div style={{ padding: "4px", minWidth: 160 }}>
+        {columns.map((col) => {
+          const on = value.includes(col.id);
+          return (
+            <button
+              key={col.id}
+              onClick={(e) => { e.stopPropagation(); toggle(col.id); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                width: "100%", textAlign: "left", padding: "6px 8px",
+                borderRadius: 6, border: 0,
+                background: on ? "var(--surface-2)" : "transparent",
+                fontSize: 13, cursor: "pointer", color: "var(--ink)",
+              }}
+            >
+              <span style={{ flex: 1 }}>{col.title}</span>
+              {on && <span style={{ color: "var(--accent)" }}>{I.check}</span>}
+            </button>
+          );
+        })}
+        {value.length > 0 && (
+          <>
+            <div style={{ height: 1, background: "var(--line)", margin: "4px 0" }} />
+            <MenuItem onClick={() => onChange([])}>Clear</MenuItem>
           </>
         )}
       </div>
