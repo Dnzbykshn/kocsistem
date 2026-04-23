@@ -1,5 +1,8 @@
 "use client";
 
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+
 import { useEffect, useState } from "react";
 import { Avatar, AvatarStack, Button, Chip, InlineEdit, Menu, MenuItem, Textarea, Input } from "@/components/ui";
 import { I, Icon } from "@/components/Icons";
@@ -678,6 +681,31 @@ export function CardModal({ cardId, boardId, boardMembers, allLabels, columns, o
             padding: 16px !important;
           }
         }
+        
+        /* Tiptap styles */
+        :global(.ProseMirror) {
+          outline: none;
+        }
+        :global(.ProseMirror > *:first-child) {
+          margin-top: 0;
+        }
+        :global(.ProseMirror p) {
+          margin-bottom: 0.5em;
+        }
+        :global(.ProseMirror ul), :global(.ProseMirror ol) {
+          padding-left: 1.5rem;
+          margin-bottom: 0.5em;
+        }
+        :global(.ProseMirror h1) {
+          font-size: 1.5rem;
+          font-weight: 600;
+          margin: 0.5em 0;
+        }
+        :global(.ProseMirror h2) {
+          font-size: 1.25rem;
+          font-weight: 600;
+          margin: 0.5em 0;
+        }
       `}</style>
     </Backdrop>
   );
@@ -995,32 +1023,61 @@ function DescriptionEditor({
   onCommit: (v: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value ?? "");
+  
+  const editor = useEditor({
+    extensions: [StarterKit],
+    content: value || "",
+    immediatelyRender: false,
+  });
 
   const commit = () => {
     setEditing(false);
-    if (draft !== (value ?? "")) onCommit(draft);
+    if (editor) {
+      const html = editor.getHTML();
+      if (html !== (value ?? "")) {
+        onCommit(html);
+      }
+    }
   };
+
+  useEffect(() => {
+    if (editor && value && !editing) {
+      const currentHtml = editor.getHTML();
+      if (currentHtml !== value && value !== "<p></p>") {
+        editor.commands.setContent(value);
+      }
+    }
+  }, [value, editor, editing]);
 
   if (editing) {
     return (
-      <div>
-        <Textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") commit();
-            if (e.key === "Escape") {
-              setDraft(value ?? "");
-              setEditing(false);
-            }
-          }}
-          autoFocus
-          style={{ minHeight: 90, fontSize: 13.5 }}
-        />
-        <div style={{ marginTop: 6, display: "flex", gap: 6, justifyContent: "flex-end" }}>
-          <Button size="sm" variant="default" type="button" onClick={() => { setDraft(value ?? ""); setEditing(false); }}>
+      <div className="tiptap-editor-container" style={{
+        border: "1px solid var(--line-strong)",
+        borderRadius: 8,
+        overflow: "hidden",
+        background: "var(--surface)",
+      }}>
+        <div style={{
+          display: "flex", gap: 4, padding: "6px 8px", borderBottom: "1px solid var(--line)", background: "var(--surface-2)", flexWrap: "wrap"
+        }}>
+          <Button size="sm" variant="default" type="button" onClick={() => editor?.chain().focus().toggleBold().run()} style={{ background: editor?.isActive('bold') ? 'var(--line)' : 'transparent', border: 0, padding: "4px 8px" }}><b>B</b></Button>
+          <Button size="sm" variant="default" type="button" onClick={() => editor?.chain().focus().toggleItalic().run()} style={{ background: editor?.isActive('italic') ? 'var(--line)' : 'transparent', border: 0, padding: "4px 8px" }}><i>I</i></Button>
+          <Button size="sm" variant="default" type="button" onClick={() => editor?.chain().focus().toggleStrike().run()} style={{ background: editor?.isActive('strike') ? 'var(--line)' : 'transparent', border: 0, padding: "4px 8px" }}><s>S</s></Button>
+          <div style={{ width: 1, background: "var(--line)", margin: "0 4px" }} />
+          <Button size="sm" variant="default" type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} style={{ background: editor?.isActive('heading', { level: 1 }) ? 'var(--line)' : 'transparent', border: 0, padding: "4px 8px", fontWeight: 600 }}>H1</Button>
+          <Button size="sm" variant="default" type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} style={{ background: editor?.isActive('heading', { level: 2 }) ? 'var(--line)' : 'transparent', border: 0, padding: "4px 8px", fontWeight: 600 }}>H2</Button>
+          <div style={{ width: 1, background: "var(--line)", margin: "0 4px" }} />
+          <Button size="sm" variant="default" type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()} style={{ background: editor?.isActive('bulletList') ? 'var(--line)' : 'transparent', border: 0, padding: "4px 8px" }}>• List</Button>
+          <Button size="sm" variant="default" type="button" onClick={() => editor?.chain().focus().toggleOrderedList().run()} style={{ background: editor?.isActive('orderedList') ? 'var(--line)' : 'transparent', border: 0, padding: "4px 8px" }}>1. List</Button>
+        </div>
+        <div style={{ padding: "12px", minHeight: 120 }}>
+          <EditorContent editor={editor} />
+        </div>
+        <div style={{ padding: "8px 12px", display: "flex", gap: 6, justifyContent: "flex-end", borderTop: "1px solid var(--line)", background: "var(--surface-2)" }}>
+          <Button size="sm" variant="default" type="button" onClick={() => {
+            if (editor) editor.commands.setContent(value || "");
+            setEditing(false);
+          }}>
             Cancel
           </Button>
           <Button size="sm" variant="primary" type="button" onClick={commit}>
@@ -1033,7 +1090,7 @@ function DescriptionEditor({
 
   return (
     <div
-      onClick={() => { setDraft(value ?? ""); setEditing(true); }}
+      onClick={() => { setEditing(true); setTimeout(() => editor?.commands.focus('end'), 50); }}
       style={{
         minHeight: 60,
         padding: "8px 10px",
@@ -1041,13 +1098,16 @@ function DescriptionEditor({
         border: "1px solid var(--line)",
         background: "var(--surface-2)",
         fontSize: 13.5,
-        color: value ? "var(--ink-2)" : "var(--ink-4)",
+        color: value && value !== "<p></p>" ? "var(--ink-2)" : "var(--ink-4)",
         cursor: "text",
         lineHeight: 1.55,
-        whiteSpace: "pre-wrap",
       }}
     >
-      {value || "Add a description…"}
+      {value && value !== "<p></p>" ? (
+        <div className="ProseMirror tiptap-render" dangerouslySetInnerHTML={{ __html: value }} />
+      ) : (
+        "Add a description…"
+      )}
     </div>
   );
 }
