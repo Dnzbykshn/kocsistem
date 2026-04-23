@@ -28,6 +28,7 @@ export interface Database {
           name: string;
           initials: string;
           color: string;
+          is_admin: boolean;
           created_at: string;
         };
         Insert: {
@@ -36,8 +37,9 @@ export interface Database {
           name: string;
           initials: string;
           color?: string;
+          is_admin?: boolean;
         };
-        Update: Partial<{ name: string; initials: string; color: string }>;
+        Update: Partial<{ name: string; initials: string; color: string; is_admin: boolean }>;
       };
       boards: {
         Row: {
@@ -144,6 +146,11 @@ export interface Database {
         Update: never;
       };
       card_assignees: {
+        Row: { card_id: string; user_id: string };
+        Insert: { card_id: string; user_id: string };
+        Update: never;
+      };
+      card_watchers: {
         Row: { card_id: string; user_id: string };
         Insert: { card_id: string; user_id: string };
         Update: never;

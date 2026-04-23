@@ -21,6 +21,13 @@ export async function getMe(): Promise<Profile | null> {
   return (rows[0] as unknown as Profile) ?? null;
 }
 
+export async function listAllProfiles(): Promise<Profile[]> {
+  const session = await auth();
+  if (!session?.user?.id) return [];
+  const rows = await db`SELECT * FROM profiles ORDER BY name`;
+  return rows as unknown as Profile[];
+}
+
 // ----------------------------------------------------------------------------
 // Boards
 // ----------------------------------------------------------------------------
@@ -59,12 +66,16 @@ export async function getBoardDetail(boardId: string): Promise<BoardDetail | nul
         COALESCE(
           json_agg(DISTINCT ca.user_id) FILTER (WHERE ca.user_id IS NOT NULL), '[]'
         ) AS assignee_ids,
+        COALESCE(
+          json_agg(DISTINCT cw.user_id) FILTER (WHERE cw.user_id IS NOT NULL), '[]'
+        ) AS watcher_ids,
         COUNT(DISTINCT ci.id) AS checklist_count,
         COUNT(DISTINCT ci.id) FILTER (WHERE ci.done = true) AS checklist_done,
         COUNT(DISTINCT co.id) AS comment_count
       FROM cards c
       LEFT JOIN card_labels cl ON cl.card_id = c.id
       LEFT JOIN card_assignees ca ON ca.card_id = c.id
+      LEFT JOIN card_watchers cw ON cw.card_id = c.id
       LEFT JOIN checklist_items ci ON ci.card_id = c.id
       LEFT JOIN comments co ON co.card_id = c.id
       WHERE c.board_id = ${boardId}
@@ -93,6 +104,7 @@ export async function getBoardDetail(boardId: string): Promise<BoardDetail | nul
     created_at: c.created_at as string,
     labels: (c.label_ids as string[]) ?? [],
     assignees: (c.assignee_ids as string[]) ?? [],
+    watchers: (c.watcher_ids as string[]) ?? [],
     checklist_count: Number(c.checklist_count),
     checklist_done: Number(c.checklist_done),
     comment_count: Number(c.comment_count),
@@ -130,7 +142,7 @@ export async function getCardDetail(cardId: string): Promise<CardDetail | null> 
   const session = await auth();
   if (!session?.user?.id) return null;
 
-  const [cardRows, labelRows, assigneeRows, checklistRows, commentRows] = await Promise.all([
+  const [cardRows, labelRows, assigneeRows, watcherRows, checklistRows, commentRows] = await Promise.all([
     db`SELECT * FROM cards WHERE id = ${cardId}`,
     db`
       SELECT l.* FROM labels l
@@ -141,6 +153,11 @@ export async function getCardDetail(cardId: string): Promise<CardDetail | null> 
       SELECT p.* FROM profiles p
       JOIN card_assignees ca ON ca.user_id = p.id
       WHERE ca.card_id = ${cardId}
+    `,
+    db`
+      SELECT p.* FROM profiles p
+      JOIN card_watchers cw ON cw.user_id = p.id
+      WHERE cw.card_id = ${cardId}
     `,
     db`SELECT * FROM checklist_items WHERE card_id = ${cardId} ORDER BY position`,
     db`
@@ -168,6 +185,7 @@ export async function getCardDetail(cardId: string): Promise<CardDetail | null> 
       email: c.a_email as string,
       initials: c.a_initials as string,
       color: c.a_color as string,
+      is_admin: false as boolean,
       created_at: c.a_created_at as string,
     },
   }));
@@ -185,6 +203,7 @@ export async function getCardDetail(cardId: string): Promise<CardDetail | null> 
     created_at: card.created_at as string,
     labels: labelRows as unknown as CardDetail["labels"],
     assignees: assigneeRows as unknown as CardDetail["assignees"],
+    watchers: watcherRows as unknown as CardDetail["watchers"],
     checklist: checklistRows as unknown as CardDetail["checklist"],
     comments,
   };

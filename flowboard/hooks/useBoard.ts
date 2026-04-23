@@ -17,6 +17,7 @@ import {
   updateColumn,
   toggleCardLabel,
   toggleCardAssignee,
+  toggleCardWatcher,
 } from "@/lib/mutations";
 import type { BoardDetail, Card, Column } from "@/types/domain";
 import type { CardPriority } from "@/types/database";
@@ -320,6 +321,43 @@ export function useToggleCardAssignee(boardId: string) {
                       assignees: args.on
                         ? [...c.assignees, args.userId]
                         : c.assignees.filter((u) => u !== args.userId),
+                    }
+                  : c
+              ),
+            }
+          : old
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(key(boardId), ctx.prev);
+    },
+    onSettled: (_d, _e, vars) => {
+      qc.invalidateQueries({ queryKey: key(boardId) });
+      qc.invalidateQueries({ queryKey: ["card", vars.cardId] });
+    },
+  });
+}
+
+export function useToggleCardWatcher(boardId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { cardId: string; userId: string; on: boolean }) =>
+      toggleCardWatcher(args),
+    onMutate: async (args) => {
+      await qc.cancelQueries({ queryKey: key(boardId) });
+      const prev = qc.getQueryData<BoardDetail>(key(boardId));
+      qc.setQueryData<BoardDetail>(key(boardId), (old) =>
+        old
+          ? {
+              ...old,
+              cards: old.cards.map<Card>((c) =>
+                c.id === args.cardId
+                  ? {
+                      ...c,
+                      watchers: args.on
+                        ? [...c.watchers, args.userId]
+                        : c.watchers.filter((u) => u !== args.userId),
                     }
                   : c
               ),

@@ -100,9 +100,11 @@ export function Dashboard() {
                 style={{ paddingLeft: 32, width: 220 }}
               />
             </div>
-            <Button variant="primary" onClick={() => setAdding(true)}>
-              {I.plus} New board
-            </Button>
+            {me?.is_admin && (
+              <Button variant="primary" onClick={() => setAdding(true)}>
+                {I.plus} New board
+              </Button>
+            )}
           </div>
         </header>
 
@@ -164,7 +166,7 @@ export function Dashboard() {
             <BoardGrid
               boards={others}
               onStar={(id, on) => toggleStar.mutate({ boardId: id, patch: { starred: on } })}
-              createCard={() => setAdding(true)}
+              createCard={me?.is_admin ? () => setAdding(true) : undefined}
             />
           </Section>
         )}

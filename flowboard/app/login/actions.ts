@@ -49,12 +49,14 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
   const colors = ["#5B5BF5", "#2E7D6A", "#C84B7A", "#E6884E", "#8B5BD9", "#3E7CE0"];
   const color = colors[Math.floor(Math.random() * colors.length)];
 
-  await db`
-    INSERT INTO profiles (id, email, name, initials, color)
-    VALUES (${user.id}, ${email}, ${name}, ${initials}, ${color})
-  `;
+  // İlk kayıt olan kullanıcı admin (Scrum Master) olur
+  const adminCheck = await db`SELECT id FROM profiles WHERE is_admin = true LIMIT 1`;
+  const isFirstAdmin = adminCheck.length === 0;
 
-  await db`SELECT seed_demo_workspace(${user.id as string}::uuid)`;
+  await db`
+    INSERT INTO profiles (id, email, name, initials, color, is_admin)
+    VALUES (${user.id}, ${email}, ${name}, ${initials}, ${color}, ${isFirstAdmin})
+  `;
 
   try {
     await signIn("credentials", { email, password, redirectTo: "/" });

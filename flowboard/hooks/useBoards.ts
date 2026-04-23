@@ -5,8 +5,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { listBoards, recentActivity } from "@/lib/queries";
-import { createBoard, updateBoard, deleteBoard } from "@/lib/mutations";
+import { listBoards, recentActivity, listAllProfiles } from "@/lib/queries";
+import { createBoard, updateBoard, deleteBoard, addBoardMember, removeBoardMember } from "@/lib/mutations";
 import type { Board } from "@/types/domain";
 
 export function useBoards() {
@@ -60,5 +60,30 @@ export function useDeleteBoard() {
   return useMutation({
     mutationFn: (boardId: string) => deleteBoard(boardId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["boards"] }),
+  });
+}
+
+export function useAllProfiles() {
+  return useQuery({
+    queryKey: ["profiles"],
+    queryFn: () => listAllProfiles(),
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useAddBoardMember(boardId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { userId: string; role?: "editor" | "viewer" }) =>
+      addBoardMember({ boardId, ...args }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["board", boardId] }),
+  });
+}
+
+export function useRemoveBoardMember(boardId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => removeBoardMember({ boardId, userId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["board", boardId] }),
   });
 }

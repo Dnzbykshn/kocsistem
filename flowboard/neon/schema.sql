@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   name       TEXT NOT NULL,
   initials   TEXT NOT NULL,
   color      TEXT NOT NULL DEFAULT '#5B5BF5',
+  is_admin   BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -139,6 +140,15 @@ CREATE TABLE IF NOT EXISTS public.card_labels (
 -- card_assignees (m2m)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.card_assignees (
+  card_id UUID NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  PRIMARY KEY (card_id, user_id)
+);
+
+-- ----------------------------------------------------------------------------
+-- card_watchers (m2m) — göreve gözetmen/takipçi ekleme
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.card_watchers (
   card_id UUID NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   PRIMARY KEY (card_id, user_id)

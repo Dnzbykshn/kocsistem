@@ -11,6 +11,13 @@ async function requireUser() {
   return session.user.id;
 }
 
+async function requireAdmin() {
+  const userId = await requireUser();
+  const rows = await db`SELECT is_admin FROM profiles WHERE id = ${userId} LIMIT 1`;
+  if (!rows.length || !rows[0].is_admin) throw new Error("Admin yetkisi gerekli");
+  return userId;
+}
+
 // ----------------------------------------------------------------------------
 // Boards
 // ----------------------------------------------------------------------------
@@ -19,7 +26,7 @@ export async function createBoard(args: {
   ownerId?: string;
   color?: string;
 }): Promise<string> {
-  const userId = await requireUser();
+  const userId = await requireAdmin();
   const color = args.color ?? "#5B5BF5";
 
   const rows = await db`
@@ -62,6 +69,28 @@ export async function updateBoard(
 export async function deleteBoard(boardId: string) {
   await requireUser();
   await db`DELETE FROM boards WHERE id = ${boardId}`;
+}
+
+export async function addBoardMember(args: {
+  boardId: string;
+  userId: string;
+  role?: "editor" | "viewer";
+}) {
+  await requireAdmin();
+  await db`
+    INSERT INTO board_members (board_id, user_id, role)
+    VALUES (${args.boardId}, ${args.userId}, ${args.role ?? "editor"})
+    ON CONFLICT (board_id, user_id) DO UPDATE SET role = EXCLUDED.role
+  `;
+}
+
+export async function removeBoardMember(args: { boardId: string; userId: string }) {
+  const adminId = await requireAdmin();
+  if (args.userId === adminId) throw new Error("Kendinizi boarddan çıkaramazsınız");
+  await db`
+    DELETE FROM board_members
+    WHERE board_id = ${args.boardId} AND user_id = ${args.userId} AND role != 'owner'
+  `;
 }
 
 // ----------------------------------------------------------------------------
@@ -227,6 +256,25 @@ export async function toggleCardAssignee(args: {
   } else {
     await db`
       DELETE FROM card_assignees WHERE card_id = ${args.cardId} AND user_id = ${args.userId}
+    `;
+  }
+}
+
+export async function toggleCardWatcher(args: {
+  cardId: string;
+  userId: string;
+  on: boolean;
+}) {
+  await requireUser();
+  if (args.on) {
+    await db`
+      INSERT INTO card_watchers (card_id, user_id)
+      VALUES (${args.cardId}, ${args.userId})
+      ON CONFLICT DO NOTHING
+    `;
+  } else {
+    await db`
+      DELETE FROM card_watchers WHERE card_id = ${args.cardId} AND user_id = ${args.userId}
     `;
   }
 }

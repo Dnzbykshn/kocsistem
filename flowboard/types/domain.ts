@@ -18,6 +18,7 @@ export type { BoardRole, CardPriority };
 export interface Card extends CardRow {
   labels: string[]; // label ids
   assignees: string[]; // user ids
+  watchers: string[]; // user ids
   checklist_count: number;
   checklist_done: number;
   comment_count: number;
@@ -27,6 +28,7 @@ export interface Card extends CardRow {
 export interface CardDetail extends CardRow {
   labels: Label[];
   assignees: Profile[];
+  watchers: Profile[];
   checklist: ChecklistItem[];
   comments: (Comment & { author: Profile | null })[];
 }

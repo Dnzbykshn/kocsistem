@@ -5,7 +5,7 @@ import { Avatar, AvatarStack, Button, Chip, InlineEdit, Menu, MenuItem, Textarea
 import { I, Icon } from "@/components/Icons";
 import { useMe } from "@/hooks/useMe";
 import { useCardDetail, useAddChecklist, useToggleChecklist, useDeleteChecklist, useAddComment } from "@/hooks/useCard";
-import { useDeleteCard, useToggleCardAssignee, useToggleCardLabel, useUpdateCard, useMoveCard } from "@/hooks/useBoard";
+import { useDeleteCard, useToggleCardAssignee, useToggleCardLabel, useUpdateCard, useMoveCard, useToggleCardWatcher } from "@/hooks/useBoard";
 import type { Column, Label, Profile } from "@/types/domain";
 import type { CardPriority } from "@/types/database";
 import { dueState, fmtDate, relativeTime } from "@/lib/utils";
@@ -26,6 +26,7 @@ export function CardModal({ cardId, boardId, boardMembers, allLabels, columns, o
   const deleteCard = useDeleteCard(boardId);
   const toggleLabel = useToggleCardLabel(boardId);
   const toggleAssignee = useToggleCardAssignee(boardId);
+  const toggleWatcher = useToggleCardWatcher(boardId);
   const moveCard = useMoveCard(boardId);
   const addChecklist = useAddChecklist(cardId, boardId);
   const toggleChecklist = useToggleChecklist(cardId, boardId);
@@ -426,6 +427,32 @@ export function CardModal({ cardId, boardId, boardMembers, allLabels, columns, o
                     onClick={(e) => {
                       e.stopPropagation();
                       toggleAssignee.mutate({ cardId, userId: u.id, on: !on });
+                    }}
+                    style={popoverItem}
+                  >
+                    <Avatar user={u} size={22} />
+                    <span style={{ flex: 1 }}>{u.name}</span>
+                    {on && <span style={{ color: "var(--accent)" }}>{I.check}</span>}
+                  </button>
+                );
+              })}
+            </Menu>
+
+            <Menu
+              trigger={({ setOpen }) => (
+                <SideBtn icon={I.eye} onClick={() => setOpen((o) => !o)}>
+                  Gözlemciler ({card.watchers.length})
+                </SideBtn>
+              )}
+            >
+              {boardMembers.map((u) => {
+                const on = card.watchers.some((w) => w.id === u.id);
+                return (
+                  <button
+                    key={u.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleWatcher.mutate({ cardId, userId: u.id, on: !on });
                     }}
                     style={popoverItem}
                   >

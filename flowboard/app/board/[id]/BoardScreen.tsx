@@ -9,6 +9,7 @@ import { useBoard, useUpdateColumn } from "@/hooks/useBoard";
 import { useUpdateBoard } from "@/hooks/useBoards";
 import { KanbanBoard } from "./KanbanBoard";
 import { CardModal } from "./CardModal";
+import { BoardMembersModal } from "./BoardMembersModal";
 
 export function BoardScreen({ boardId }: { boardId: string }) {
   const { data: me } = useMe();
@@ -19,6 +20,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
   const [query, setQuery] = useState("");
   const [labelFilters, setLabelFilters] = useState<string[]>([]);
   const [openCardId, setOpenCardId] = useState<string | null>(null);
+  const [managingMembers, setManagingMembers] = useState(false);
 
   // Reset filters when board changes
   useEffect(() => {
@@ -109,7 +111,14 @@ export function BoardScreen({ boardId }: { boardId: string }) {
             {board.starred ? I.starF : I.star}
           </button>
         </div>
-        <AvatarStack users={memberProfiles} size={24} max={4} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <AvatarStack users={memberProfiles} size={24} max={4} />
+          {me?.is_admin && (
+            <Button size="sm" variant="default" onClick={() => setManagingMembers(true)}>
+              {I.users} Üyeler
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -182,6 +191,14 @@ export function BoardScreen({ boardId }: { boardId: string }) {
           allLabels={labels}
           columns={columns}
           onClose={() => setOpenCardId(null)}
+        />
+      )}
+
+      {managingMembers && me?.is_admin && (
+        <BoardMembersModal
+          boardId={boardId}
+          members={members.map((m) => ({ ...m.profile, role: m.role }))}
+          onClose={() => setManagingMembers(false)}
         />
       )}
 

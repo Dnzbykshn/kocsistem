@@ -31,9 +31,6 @@ export function CardTile({ card, labels, users, onOpen, isDragging }: Props) {
   return (
     <div
       onPointerUp={(e) => {
-        // Distinguish click-to-open from drag. dnd-kit's PointerSensor with
-        // an 8px activation distance handles most of this for us; this guard
-        // catches the remaining case where the drag was below threshold.
         if ((e as React.PointerEvent).defaultPrevented) return;
         if (!isDragging) onOpen();
       }}
