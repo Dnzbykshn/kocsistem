@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Avatar, Menu } from "./ui";
+import { Avatar, Menu, MenuItem } from "./ui";
 import { I, Logo } from "./Icons";
 import { useMe } from "@/hooks/useMe";
 import { useBoards } from "@/hooks/useBoards";
@@ -146,27 +146,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
               )}
             >
-              <form action={logoutAction}>
-                <button
-                  type="submit"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "7px 10px",
-                    borderRadius: 6,
-                    border: 0,
-                    background: "transparent",
-                    fontSize: 13,
-                    color: "var(--err)",
-                    cursor: "pointer",
-                  }}
-                >
-                  {I.logout} Sign out
-                </button>
-              </form>
+              <MenuItem danger onClick={() => logoutAction()}>
+                {I.logout} Sign out
+              </MenuItem>
             </Menu>
           </div>
 
@@ -318,7 +300,7 @@ function NavItem({
 }) {
   return (
     <Link
-      href={href}
+      href={href as any}
       onClick={onClick}
       style={{
         display: "flex",

@@ -29,7 +29,10 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
   const name = String(formData.get("name") ?? "").trim();
 
   if (!name) return { error: "Lütfen adınızı girin." };
-  if (password.length < 6) return { error: "Şifre en az 6 karakter olmalı." };
+  if (password.length < 8) return { error: "Şifre en az 8 karakter olmalı." };
+  if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+    return { error: "Şifre en az bir büyük harf, bir küçük harf ve bir rakam içermelidir." };
+  }
 
   const existing = await db`SELECT id FROM users WHERE email = ${email} LIMIT 1`;
   if (existing.length > 0) return { error: "Bu e-posta zaten kullanımda." };
