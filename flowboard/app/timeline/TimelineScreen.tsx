@@ -2,23 +2,25 @@
 
 import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { useBoardsWithSprints } from "@/hooks/useTimeline";
+import { updateBoard } from "@/lib/mutations";
 import type { BoardWithSprints } from "@/lib/queries";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-const DAY_W_MIN = 6;
+const DAY_W_MIN = 2;
 const DAY_W_DEFAULT = 28;
 const DAY_W_MAX = 120;
-const ROW_H = 72;       // px per board row
-const HEADER_H = 56;    // timeline header height
-const BAR_H = 28;       // main board bar height
-const BAR_TOP = 16;     // y offset of bar within row
-const SPRINT_H = 8;     // sprint segment height
-const SPRINT_TOP = BAR_TOP + BAR_H + 6; // below the main bar
-const LABELS_W = 220;   // frozen left label column width
+const ROW_H = 72;
+const HEADER_H = 56;
+const BAR_H = 28;
+const BAR_TOP = 16;
+const SPRINT_H = 8;
+const SPRINT_TOP = BAR_TOP + BAR_H + 6;
+const LABELS_W = 220;
 
-// Zoom steps (px per day)
-const ZOOM_STEPS = [6, 10, 14, 20, 28, 40, 56, 80, 120];
+// Zoom steps (px per day) — küçükten büyüğe
+const ZOOM_STEPS = [2, 3, 4, 6, 8, 10, 14, 20, 28, 40, 56, 80, 120];
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Connection {
@@ -33,6 +35,14 @@ interface DragState {
   fromY: number;
   curX: number;
   curY: number;
+}
+
+interface BarDragState {
+  boardId: string;
+  origStartDate: Date;
+  origEndDate: Date;
+  mouseStartX: number;
+  offsetDays: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -99,11 +109,16 @@ export function TimelineScreen() {
   const { data: boards = [], isLoading } = useBoardsWithSprints();
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const qc = useQueryClient();
 
   const [dayW, setDayW] = useState(DAY_W_DEFAULT);
   const [connections, setConnections] = useLocalStorage<Connection[]>("ksb-timeline-connections", []);
   const [dragging, setDragging] = useState<DragState | null>(null);
   const draggingRef = useRef<DragState | null>(null);
+
+  // Bar drag state (move bar = change dates)
+  const [barDrag, setBarDrag] = useState<BarDragState | null>(null);
+  const barDragRef = useRef<BarDragState | null>(null);
 
   // Zoom helpers
   const zoomIdx = ZOOM_STEPS.indexOf(dayW);
@@ -160,39 +175,26 @@ export function TimelineScreen() {
     return () => el.removeEventListener("wheel", handler);
   }, []);
 
-  // ── Time range ──────────────────────────────────────────────────────────────
-  const { rangeStart, rangeEnd, totalDays, months } = useMemo(() => {
+  // ── Fixed time range (sabit — board eklense de aralık değişmez) ─────────────
+  const { rangeStart, rangeEnd, totalDays } = useMemo(() => {
     const today = startOfDay(new Date());
-    let earliest = addDays(today, -180);
-    let latest = addDays(today, 90);
+    const start = addDays(today, -365);
+    const end   = addDays(today,  365);
+    const total = diffDays(start, end);
+    return { rangeStart: start, rangeEnd: end, totalDays: total };
+  }, []); // no deps → never recalculates
 
-    for (const b of boards) {
-      const d = startOfDay(new Date(b.started_at ?? b.created_at));
-      if (d < earliest) earliest = d;
-      if (b.estimated_finished_at) {
-        const fin = startOfDay(new Date(b.estimated_finished_at));
-        if (fin > latest) latest = fin;
-      }
-    }
-
-    const start = addDays(earliest, -30);
-    const end = addDays(latest, 30);
-    const total = Math.max(diffDays(start, end), 120);
-
-    // Build month markers
-    const monthMarkers: { label: string; x: number; date: Date }[] = [];
-    const cursor = new Date(start);
+  const months = useMemo(() => {
+    const markers: { label: string; x: number; date: Date }[] = [];
+    const cursor = new Date(rangeStart);
     cursor.setDate(1);
-    while (cursor <= end) {
-      const x = dateToX(cursor, start, dayW);
-      if (x >= 0 && x <= total * dayW) {
-        monthMarkers.push({ label: monthLabel(cursor), x, date: new Date(cursor) });
-      }
+    while (cursor <= rangeEnd) {
+      const x = dateToX(cursor, rangeStart, dayW);
+      markers.push({ label: monthLabel(cursor), x, date: new Date(cursor) });
       cursor.setMonth(cursor.getMonth() + 1);
     }
-
-    return { rangeStart: start, rangeEnd: end, totalDays: total, months: monthMarkers };
-  }, [boards, dayW]);
+    return markers;
+  }, [rangeStart, rangeEnd, dayW]);
 
   const todayX = dateToX(new Date(), rangeStart, dayW);
 
@@ -203,6 +205,21 @@ export function TimelineScreen() {
     const target = todayX - el.clientWidth / 2;
     el.scrollLeft = Math.max(0, target);
   }, [todayX, boards.length]);
+
+  // ── Global cursor during bar drag ────────────────────────────────────────────
+  useEffect(() => {
+    if (barDrag) {
+      document.body.style.cursor = "grabbing";
+      document.body.style.userSelect = "none";
+    } else {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+    return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [barDrag]);
 
   // ── Row index map ────────────────────────────────────────────────────────────
   const boardIndexMap = useMemo(() => {
@@ -216,7 +233,7 @@ export function TimelineScreen() {
     const idx = boardIndexMap.get(board.id) ?? 0;
     const startDate = board.started_at ? new Date(board.started_at) : new Date(board.created_at);
     const endDate = board.estimated_finished_at ? new Date(board.estimated_finished_at) : new Date();
-    const barW = Math.max(dayW, diffDays(startDate, endDate) * dayW);
+    const barW = Math.max(4, diffDays(startDate, endDate) * dayW);
     const x = dateToX(startDate, rangeStart, dayW) + barW;
     const y = HEADER_H + idx * ROW_H + BAR_TOP + BAR_H / 2;
     return { x, y };
@@ -303,6 +320,62 @@ export function TimelineScreen() {
   const removeConnection = useCallback((id: string) => {
     setConnections((prev) => prev.filter((c) => c.id !== id));
   }, [setConnections]);
+
+  // ── Bar drag to move board dates ─────────────────────────────────────────────
+  const handleBarMouseDown = useCallback((e: React.MouseEvent, board: BoardWithSprints) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const gridEl = gridRef.current;
+    const scrollEl = scrollRef.current;
+    if (!gridEl || !scrollEl) return;
+
+    const origStart = board.started_at ? new Date(board.started_at) : new Date(board.created_at);
+    const origEnd   = board.estimated_finished_at ? new Date(board.estimated_finished_at) : new Date();
+    const mouseStartX = e.clientX - gridEl.getBoundingClientRect().left + scrollEl.scrollLeft;
+
+    const state: BarDragState = {
+      boardId: board.id,
+      origStartDate: origStart,
+      origEndDate: origEnd,
+      mouseStartX,
+      offsetDays: 0,
+    };
+    barDragRef.current = state;
+    setBarDrag({ ...state });
+
+    const onMove = (ev: MouseEvent) => {
+      const rect = gridEl.getBoundingClientRect();
+      const curX = ev.clientX - rect.left + scrollEl.scrollLeft;
+      const deltaX = curX - barDragRef.current!.mouseStartX;
+      const offsetDays = Math.round(deltaX / dayW);
+      const next = { ...barDragRef.current!, offsetDays };
+      barDragRef.current = next;
+      setBarDrag({ ...next });
+    };
+
+    const onUp = async () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+
+      const final = barDragRef.current;
+      barDragRef.current = null;
+      setBarDrag(null);
+
+      if (!final || final.offsetDays === 0) return;
+
+      const newStart = addDays(final.origStartDate, final.offsetDays);
+      const newEnd   = addDays(final.origEndDate,   final.offsetDays);
+
+      await updateBoard(final.boardId, {
+        started_at: newStart.toISOString(),
+        estimated_finished_at: newEnd.toISOString(),
+      });
+      qc.invalidateQueries({ queryKey: ["boards-with-sprints"] });
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [dayW, qc]);
 
   // ── Render ───────────────────────────────────────────────────────────────────
   const totalW = totalDays * dayW;
@@ -455,6 +528,8 @@ export function TimelineScreen() {
               {months.map((m, i) => {
                 const nextX = months[i + 1]?.x ?? totalW;
                 const width = nextX - m.x;
+                // Label için yeterli genişlik yoksa sadece çizgiyi göster
+                const showLabel = width >= 36;
                 return (
                   <div
                     key={i}
@@ -468,17 +543,23 @@ export function TimelineScreen() {
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "flex-end",
-                      padding: "0 8px 6px",
+                      padding: "0 6px 6px",
+                      overflow: "hidden",
                     }}
                   >
-                    <span style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: "var(--ink-3)",
-                      letterSpacing: ".06em",
-                    }}>
-                      {m.label} {m.date.getFullYear()}
-                    </span>
+                    {showLabel && (
+                      <span style={{
+                        fontSize: Math.max(9, Math.min(11, width / 8)),
+                        fontWeight: 700,
+                        color: "var(--ink-3)",
+                        letterSpacing: ".04em",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}>
+                        {width < 56 ? m.date.toLocaleDateString("en-US", { month: "narrow" }) : `${m.label} ${m.date.getFullYear()}`}
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -629,6 +710,8 @@ export function TimelineScreen() {
                 idx={idx}
                 rangeStart={rangeStart}
                 dayW={dayW}
+                dragOffsetDays={barDrag?.boardId === board.id ? barDrag.offsetDays : 0}
+                onBarMouseDown={(e) => handleBarMouseDown(e, board)}
                 onDragStart={(e) => handleDragStart(e, board, idx)}
               />
             ))}
@@ -696,26 +779,33 @@ function BoardBar({
   idx,
   rangeStart,
   dayW,
+  dragOffsetDays,
+  onBarMouseDown,
   onDragStart,
 }: {
   board: BoardWithSprints;
   idx: number;
   rangeStart: Date;
   dayW: number;
+  dragOffsetDays: number;
+  onBarMouseDown: (e: React.MouseEvent) => void;
   onDragStart: (e: React.MouseEvent) => void;
 }) {
   const today = new Date();
 
-  // Use explicit dates if set, otherwise fall back to created_at → today
-  const barStart = board.started_at
+  const barStartBase = board.started_at
     ? new Date(board.started_at)
     : new Date(board.created_at);
-  const barEnd = board.estimated_finished_at
+  const barEndBase = board.estimated_finished_at
     ? new Date(board.estimated_finished_at)
     : today;
 
+  // Apply drag offset for live preview
+  const barStart = dragOffsetDays !== 0 ? addDays(barStartBase, dragOffsetDays) : barStartBase;
+  const barEnd   = dragOffsetDays !== 0 ? addDays(barEndBase,   dragOffsetDays) : barEndBase;
+
   const x = dateToX(barStart, rangeStart, dayW);
-  const w = Math.max(dayW, diffDays(barStart, barEnd) * dayW);
+  const w = Math.max(4, diffDays(barStart, barEnd) * dayW);
   const top = HEADER_H + idx * ROW_H;
 
   // Progress: how far today is within the bar (0–1), for visual overlay
@@ -728,6 +818,7 @@ function BoardBar({
     <div style={{ position: "absolute", top, left: 0, width: "100%", height: ROW_H, zIndex: 4 }}>
       {/* Main board bar */}
       <div
+        onMouseDown={onBarMouseDown}
         title={`${board.title}${board.estimated_finished_at ? ` · Due ${new Date(board.estimated_finished_at).toLocaleDateString()}` : ""}`}
         style={{
           position: "absolute",
@@ -739,9 +830,11 @@ function BoardBar({
           background: isPast
             ? `color-mix(in oklab, ${board.color} 60%, #888)`
             : board.color,
-          opacity: 0.88,
+          opacity: dragOffsetDays !== 0 ? 0.75 : 0.88,
           overflow: "hidden",
           boxShadow: "0 1px 3px rgba(0,0,0,.15)",
+          cursor: dragOffsetDays !== 0 ? "grabbing" : "grab",
+          outline: dragOffsetDays !== 0 ? `2px solid ${board.color}` : "none",
         }}
       >
         {/* Progress fill */}
@@ -793,10 +886,12 @@ function BoardBar({
       {/* Sprint segments */}
       {board.sprints.map((sprint) => {
         if (!sprint.started_at) return null;
-        const sStart = new Date(sprint.started_at);
-        const sEnd = sprint.ended_at ? new Date(sprint.ended_at) : today;
+        const sStart = dragOffsetDays !== 0 ? addDays(new Date(sprint.started_at), dragOffsetDays) : new Date(sprint.started_at);
+        const sEnd = sprint.ended_at
+          ? (dragOffsetDays !== 0 ? addDays(new Date(sprint.ended_at), dragOffsetDays) : new Date(sprint.ended_at))
+          : today;
         const sx = dateToX(sStart, rangeStart, dayW);
-        const sw = Math.max(dayW / 2, diffDays(sStart, sEnd) * dayW);
+        const sw = Math.max(2, diffDays(sStart, sEnd) * dayW);
         const isActive = sprint.status === "active";
         return (
           <div
@@ -816,9 +911,9 @@ function BoardBar({
         );
       })}
 
-      {/* Drag handle — right edge of bar */}
+      {/* Drag handle — right edge of bar (for connections) */}
       <div
-        onMouseDown={onDragStart}
+        onMouseDown={(e) => { e.stopPropagation(); onDragStart(e); }}
         title="Drag to connect to another board"
         style={{
           position: "absolute",
