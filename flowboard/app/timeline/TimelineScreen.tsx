@@ -204,6 +204,32 @@ export function TimelineScreen() {
     el.scrollLeft = Math.max(0, target);
   }, [todayX, boards.length]);
 
+  // ── Row index map ────────────────────────────────────────────────────────────
+  const boardIndexMap = useMemo(() => {
+    const m = new Map<string, number>();
+    boards.forEach((b, i) => m.set(b.id, i));
+    return m;
+  }, [boards]);
+
+  // ── Connection points (grid-relative coords, no scroll offset) ────────────────
+  const getBoardBarEnd = useCallback((board: BoardWithSprints): { x: number; y: number } => {
+    const idx = boardIndexMap.get(board.id) ?? 0;
+    const startDate = board.started_at ? new Date(board.started_at) : new Date(board.created_at);
+    const endDate = board.estimated_finished_at ? new Date(board.estimated_finished_at) : new Date();
+    const barW = Math.max(dayW, diffDays(startDate, endDate) * dayW);
+    const x = dateToX(startDate, rangeStart, dayW) + barW;
+    const y = HEADER_H + idx * ROW_H + BAR_TOP + BAR_H / 2;
+    return { x, y };
+  }, [boardIndexMap, rangeStart, dayW]);
+
+  const getBoardBarStart = useCallback((board: BoardWithSprints): { x: number; y: number } => {
+    const idx = boardIndexMap.get(board.id) ?? 0;
+    const startDate = board.started_at ? new Date(board.started_at) : new Date(board.created_at);
+    const x = dateToX(startDate, rangeStart, dayW);
+    const y = HEADER_H + idx * ROW_H + BAR_TOP + BAR_H / 2;
+    return { x, y };
+  }, [boardIndexMap, rangeStart, dayW]);
+
   // ── Drag-to-connect handlers ─────────────────────────────────────────────────
   const handleDragStart = useCallback((e: React.MouseEvent, board: BoardWithSprints, rowIndex: number) => {
     e.preventDefault();
@@ -212,28 +238,33 @@ export function TimelineScreen() {
     const scrollEl = scrollRef.current;
     if (!gridEl || !scrollEl) return;
 
-    const barEndX = Math.min(dateToX(new Date(), rangeStart, dayW), dateToX(rangeEnd, rangeStart, dayW));
-    const boardEndX = dateToX(new Date(board.created_at), rangeStart, dayW) + Math.max(1, diffDays(new Date(board.created_at), new Date())) * dayW;
-    const startX = Math.min(boardEndX, barEndX) - scrollEl.scrollLeft;
+    // Grid-relative start point: right edge of the board bar
+    const barEnd = getBoardBarEnd(board);
+    const startX = barEnd.x;  // already grid-relative (no scroll correction needed)
     const startY = HEADER_H + rowIndex * ROW_H + BAR_TOP + BAR_H / 2;
 
+    const getGridCoords = (ev: MouseEvent) => {
+      const rect = gridEl.getBoundingClientRect();
+      return {
+        x: ev.clientX - rect.left + scrollEl.scrollLeft,
+        y: ev.clientY - rect.top,
+      };
+    };
+
+    const initial = getGridCoords(e.nativeEvent);
     const state: DragState = {
       fromBoardId: board.id,
-      fromX: startX + scrollEl.scrollLeft,
+      fromX: startX,
       fromY: startY,
-      curX: e.clientX - gridEl.getBoundingClientRect().left + scrollEl.scrollLeft,
-      curY: e.clientY - gridEl.getBoundingClientRect().top,
+      curX: initial.x,
+      curY: initial.y,
     };
     draggingRef.current = state;
     setDragging({ ...state });
 
     const onMove = (ev: MouseEvent) => {
-      const rect = gridEl.getBoundingClientRect();
-      const next = {
-        ...draggingRef.current!,
-        curX: ev.clientX - rect.left + scrollEl.scrollLeft,
-        curY: ev.clientY - rect.top,
-      };
+      const { x, y } = getGridCoords(ev);
+      const next = { ...draggingRef.current!, curX: x, curY: y };
       draggingRef.current = next;
       setDragging({ ...next });
     };
@@ -267,39 +298,11 @@ export function TimelineScreen() {
 
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, [boards, connections, rangeStart, rangeEnd, setConnections, dayW]);
+  }, [boards, connections, setConnections, getBoardBarEnd]);
 
   const removeConnection = useCallback((id: string) => {
     setConnections((prev) => prev.filter((c) => c.id !== id));
   }, [setConnections]);
-
-  // ── Row index map ────────────────────────────────────────────────────────────
-  const boardIndexMap = useMemo(() => {
-    const m = new Map<string, number>();
-    boards.forEach((b, i) => m.set(b.id, i));
-    return m;
-  }, [boards]);
-
-  // ── Connection points ────────────────────────────────────────────────────────
-  function getBoardBarEnd(board: BoardWithSprints): { x: number; y: number } {
-    const idx = boardIndexMap.get(board.id) ?? 0;
-    const endDate = board.estimated_finished_at
-      ? new Date(board.estimated_finished_at)
-      : new Date();
-    const x = dateToX(endDate, rangeStart, dayW);
-    const y = HEADER_H + idx * ROW_H + BAR_TOP + BAR_H / 2;
-    return { x, y };
-  }
-
-  function getBoardBarStart(board: BoardWithSprints): { x: number; y: number } {
-    const idx = boardIndexMap.get(board.id) ?? 0;
-    const startDate = board.started_at
-      ? new Date(board.started_at)
-      : new Date(board.created_at);
-    const x = dateToX(startDate, rangeStart, dayW);
-    const y = HEADER_H + idx * ROW_H + BAR_TOP + BAR_H / 2;
-    return { x, y };
-  }
 
   // ── Render ───────────────────────────────────────────────────────────────────
   const totalW = totalDays * dayW;
@@ -528,19 +531,42 @@ export function TimelineScreen() {
               zIndex: 3,
             }} />
 
-            {/* SVG layer for connections */}
+            {/* SVG layer for connections — z-index above bars (8 > 4) */}
             <svg
               style={{
                 position: "absolute",
                 top: 0,
                 left: 0,
-                width: "100%",
-                height: "100%",
+                width: totalW,
+                height: totalH,
                 pointerEvents: "none",
-                zIndex: 5,
+                zIndex: 8,
                 overflow: "visible",
               }}
             >
+              <defs>
+                <marker
+                  id="arrowhead"
+                  markerWidth="8"
+                  markerHeight="6"
+                  refX="7"
+                  refY="3"
+                  orient="auto"
+                >
+                  <polygon points="0 0, 8 3, 0 6" fill="var(--accent)" opacity={0.85} />
+                </marker>
+                <marker
+                  id="arrowhead-preview"
+                  markerWidth="8"
+                  markerHeight="6"
+                  refX="7"
+                  refY="3"
+                  orient="auto"
+                >
+                  <polygon points="0 0, 8 3, 0 6" fill="var(--accent)" opacity={0.5} />
+                </marker>
+              </defs>
+
               {/* Render saved connections */}
               {connections.map((conn) => {
                 const fromBoard = boards.find((b) => b.id === conn.fromBoardId);
@@ -548,36 +574,38 @@ export function TimelineScreen() {
                 if (!fromBoard || !toBoard) return null;
                 const from = getBoardBarEnd(fromBoard);
                 const to = getBoardBarStart(toBoard);
-                const dx = Math.abs(to.x - from.x) * 0.5;
+                // Smooth cubic bezier: horizontal handles proportional to distance
+                const dx = Math.max(Math.abs(to.x - from.x) * 0.45, 40);
                 const path = `M ${from.x} ${from.y} C ${from.x + dx} ${from.y}, ${to.x - dx} ${to.y}, ${to.x} ${to.y}`;
                 return (
                   <g key={conn.id} style={{ pointerEvents: "all" }}>
+                    {/* Invisible wider path for easy clicking */}
+                    <path
+                      d={path}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth={14}
+                      style={{ cursor: "pointer", pointerEvents: "all" }}
+                      onClick={() => removeConnection(conn.id)}
+                    />
                     <path
                       d={path}
                       fill="none"
                       stroke="var(--accent)"
                       strokeWidth={2}
-                      strokeDasharray="5 4"
-                      opacity={0.7}
+                      strokeDasharray="6 4"
+                      opacity={0.75}
+                      markerEnd="url(#arrowhead)"
                     />
-                    <circle cx={from.x} cy={from.y} r={4} fill="var(--accent)" opacity={0.8} />
-                    <circle cx={to.x} cy={to.y} r={4} fill="var(--accent)" opacity={0.8} />
-                    {/* Invisible wider path for click target */}
-                    <path
-                      d={path}
-                      fill="none"
-                      stroke="transparent"
-                      strokeWidth={12}
-                      style={{ cursor: "pointer", pointerEvents: "all" }}
-                      onClick={() => removeConnection(conn.id)}
-                    />
+                    <circle cx={from.x} cy={from.y} r={4} fill="var(--accent)" opacity={0.85} />
+                    <circle cx={to.x} cy={to.y} r={4} fill="var(--accent)" opacity={0.85} />
                   </g>
                 );
               })}
 
               {/* Drag preview line */}
               {dragging && (() => {
-                const dx = Math.abs(dragging.curX - dragging.fromX) * 0.5;
+                const dx = Math.max(Math.abs(dragging.curX - dragging.fromX) * 0.45, 40);
                 const path = `M ${dragging.fromX} ${dragging.fromY} C ${dragging.fromX + dx} ${dragging.fromY}, ${dragging.curX - dx} ${dragging.curY}, ${dragging.curX} ${dragging.curY}`;
                 return (
                   <path
@@ -585,14 +613,15 @@ export function TimelineScreen() {
                     fill="none"
                     stroke="var(--accent)"
                     strokeWidth={2}
-                    strokeDasharray="5 4"
-                    opacity={0.5}
+                    strokeDasharray="6 4"
+                    opacity={0.55}
+                    markerEnd="url(#arrowhead-preview)"
                   />
                 );
               })()}
             </svg>
 
-            {/* Board bars */}
+            {/* Board bars — zIndex 4, below SVG layer (8) */}
             {boards.map((board, idx) => (
               <BoardBar
                 key={board.id}
