@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS public.cards (
   title       TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
   priority    card_priority,
+  start_at    TIMESTAMPTZ,
   due_at      TIMESTAMPTZ,
   position    TEXT NOT NULL,
   created_by  UUID REFERENCES public.profiles(id) ON DELETE SET NULL,

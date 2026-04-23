@@ -185,6 +185,11 @@ export function CardModal({ cardId, boardId, boardMembers, allLabels, columns, o
                 {card.priority} priority
               </Chip>
             )}
+            {card.start_at && (
+              <Chip color="var(--ink-3)">
+                Start {fmtDate(card.start_at)}
+              </Chip>
+            )}
             {card.due_at && (
               <Chip
                 color={
@@ -501,6 +506,11 @@ export function CardModal({ cardId, boardId, boardMembers, allLabels, columns, o
               })}
             </Menu>
 
+            <StartDateField
+              value={card.start_at}
+              onChange={(v) => updateCard.mutate({ cardId, patch: { start_at: v } })}
+            />
+
             <DueDateField
               value={card.due_at}
               onChange={(v) => updateCard.mutate({ cardId, patch: { due_at: v } })}
@@ -722,6 +732,68 @@ function SideBtn({
       <span style={{ color: "var(--ink-3)" }}>{icon}</span>
       {children}
     </button>
+  );
+}
+
+function StartDateField({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+}) {
+  const inputValue = value ? new Date(value).toISOString().slice(0, 16) : "";
+  return (
+    <div style={{ position: "relative", marginBottom: 8 }}>
+      <label style={{ display: "block", cursor: "pointer" }}>
+        <span style={{ ...sideBtnLabelStyle }}>
+          <span style={{ color: "var(--ink-3)", display: "inline-flex", marginRight: 8 }}>
+            {I.clock}
+          </span>
+          {value ? `Start ${fmtDate(value)}` : "Start date"}
+        </span>
+        <input
+          type="datetime-local"
+          value={inputValue}
+          onClick={(e) => {
+            try {
+              if ('showPicker' in HTMLInputElement.prototype) {
+                e.currentTarget.showPicker();
+              }
+            } catch (err) {}
+          }}
+          onChange={(e) =>
+            onChange(e.target.value ? new Date(e.target.value).toISOString() : null)
+          }
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: 0,
+            cursor: "pointer",
+          }}
+        />
+      </label>
+      {value && (
+        <button
+          onClick={() => onChange(null)}
+          style={{
+            position: "absolute",
+            right: 8,
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "transparent",
+            border: 0,
+            color: "var(--ink-4)",
+            cursor: "pointer",
+            padding: 2,
+            zIndex: 10,
+          }}
+          aria-label="Clear date"
+        >
+          {I.x}
+        </button>
+      )}
+    </div>
   );
 }
 

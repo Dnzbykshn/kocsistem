@@ -120,6 +120,7 @@ export interface Database {
           title: string;
           description: string;
           priority: CardPriority | null;
+          start_at: string | null;
           due_at: string | null;
           position: string;
           created_by: string | null;
@@ -132,6 +133,7 @@ export interface Database {
           title: string;
           description?: string;
           priority?: CardPriority | null;
+          start_at?: string | null;
           due_at?: string | null;
           position: string;
           created_by?: string | null;
@@ -140,6 +142,7 @@ export interface Database {
           title: string;
           description: string;
           priority: CardPriority | null;
+          start_at: string | null;
           due_at: string | null;
           position: string;
           column_id: string;

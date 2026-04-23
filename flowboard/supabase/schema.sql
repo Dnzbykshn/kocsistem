@@ -151,6 +151,7 @@ create table if not exists public.cards (
   title        text not null,
   description  text not null default '',
   priority     card_priority,
+  start_at     timestamptz,
   due_at       timestamptz,
   position     text not null,
   created_by   uuid references public.profiles(id) on delete set null,

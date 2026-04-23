@@ -87,6 +87,7 @@ export function CardTile({ card, labels, users, onOpen, isDragging }: Props) {
 
       {(card.description ||
         card.checklist_count > 0 ||
+        card.start_at ||
         card.due_at ||
         card.comment_count > 0 ||
         assignees.length > 0) && (
@@ -104,6 +105,19 @@ export function CardTile({ card, labels, users, onOpen, isDragging }: Props) {
           {card.description && (
             <span title="Has description" style={{ display: "inline-flex", gap: 3, alignItems: "center" }}>
               {I.list}
+            </span>
+          )}
+          {card.start_at && (
+            <span
+              style={{
+                display: "inline-flex",
+                gap: 4,
+                alignItems: "center",
+                color: "var(--ink-3)",
+              }}
+              title="Start time"
+            >
+              {I.clock} <span className="mono">{fmtDate(card.start_at)}</span>
             </span>
           )}
           {card.due_at && (
