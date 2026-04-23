@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { QueryProvider } from "@/components/QueryProvider";
+import { TweaksProvider } from "@/components/TweaksProvider";
 
 export const metadata: Metadata = {
   title: "KocSistemBoard",
@@ -28,7 +29,9 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </head>
       <body>
-        <QueryProvider>{children}</QueryProvider>
+        <TweaksProvider>
+          <QueryProvider>{children}</QueryProvider>
+        </TweaksProvider>
       </body>
     </html>
   );

@@ -1,18 +1,29 @@
 // App root — wires everything together
 
-const UICtx = React.createContext({ openCmdK: ()=>{}, openInbox: ()=>{} });
+const UICtx = React.createContext({ openCmdK: ()=>{}, openInbox: ()=>{}, tweaks: window.__TWEAKS__, applyTweak: ()=>{} });
+
+const TWEAKS_LS = 'flowboard.tweaks';
+
+function loadTweaks() {
+  try {
+    const saved = localStorage.getItem(TWEAKS_LS);
+    if (saved) return { ...window.__TWEAKS__, ...JSON.parse(saved) };
+  } catch {}
+  return window.__TWEAKS__;
+}
 
 function App() {
-  const [tweaks, setTweaks] = React.useState(window.__TWEAKS__);
+  const [tweaks, setTweaks] = React.useState(loadTweaks);
   const [editMode, setEditMode] = React.useState(false);
   const [cmdkOpen, setCmdkOpen] = React.useState(false);
   const [inboxOpen, setInboxOpen] = React.useState(false);
 
-  // Apply tweaks to :root
+  // Apply tweaks to :root and persist
   React.useEffect(() => {
     document.documentElement.style.setProperty('--accent', tweaks.accent);
     document.documentElement.setAttribute('data-density', tweaks.density);
     document.documentElement.setAttribute('data-bg', tweaks.bg);
+    try { localStorage.setItem(TWEAKS_LS, JSON.stringify(tweaks)); } catch {}
   }, [tweaks]);
 
   // Global ⌘K
@@ -35,16 +46,20 @@ function App() {
     return () => window.removeEventListener('message', handler);
   }, []);
 
-  const applyTweak = (patch) => {
-    const next = { ...tweaks, ...patch };
-    setTweaks(next);
-    window.parent.postMessage({ type: '__edit_mode_set_keys', edits: patch }, '*');
-  };
+  const applyTweak = React.useCallback((patch) => {
+    setTweaks(prev => {
+      const next = { ...prev, ...patch };
+      window.parent.postMessage({ type: '__edit_mode_set_keys', edits: patch }, '*');
+      return next;
+    });
+  }, []);
 
   const ui = React.useMemo(() => ({
     openCmdK: () => setCmdkOpen(true),
     openInbox: () => setInboxOpen(true),
-  }), []);
+    tweaks,
+    applyTweak,
+  }), [tweaks, applyTweak]);
 
   return (
     <StoreProvider>

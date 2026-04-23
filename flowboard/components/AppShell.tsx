@@ -9,12 +9,14 @@ import { useMe } from "@/hooks/useMe";
 import { useBoards } from "@/hooks/useBoards";
 import { logoutAction } from "@/app/login/actions";
 import { useQueryClient } from "@tanstack/react-query";
+import { TweaksPanel } from "./TweaksPanel";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: me } = useMe();
   const { data: boards = [] } = useBoards();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [tweaksOpen, setTweaksOpen] = useState(false);
 
   // Extract boardId when on a board page
   const boardIdMatch = pathname.match(/^\/board\/([\w-]+)/);
@@ -233,8 +235,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               display: "flex",
               alignItems: "center",
               gap: 8,
+              position: "relative",
             }}
           >
+            {tweaksOpen && <TweaksPanel onClose={() => setTweaksOpen(false)} />}
             {me && <Avatar user={me} size={24} />}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
@@ -260,6 +264,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {me?.email}
               </div>
             </div>
+            <button
+              title="Appearance"
+              onClick={() => setTweaksOpen((o) => !o)}
+              style={{
+                background: tweaksOpen ? "var(--surface-2)" : "transparent",
+                border: 0,
+                padding: 5,
+                color: tweaksOpen ? "var(--ink-2)" : "var(--ink-4)",
+                cursor: "pointer",
+                borderRadius: 6,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 3a9 9 0 0 1 0 18" fill="currentColor" stroke="none" opacity=".15"/>
+                <circle cx="9" cy="9" r="1.5" fill="currentColor" stroke="none"/>
+                <circle cx="15" cy="9" r="1.5" fill="currentColor" stroke="none"/>
+                <circle cx="9" cy="15" r="1.5" fill="currentColor" stroke="none"/>
+                <circle cx="15" cy="15" r="1.5" fill="currentColor" stroke="none"/>
+              </svg>
+            </button>
           </div>
         </div>
       </aside>
