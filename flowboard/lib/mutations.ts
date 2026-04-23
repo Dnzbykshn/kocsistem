@@ -449,11 +449,11 @@ export async function completeSprint(args: {
     await db`
       INSERT INTO sprint_archived_cards (
         sprint_id, board_id, card_title, card_description, card_priority,
-        card_due_at, column_title, created_by_name, assignee_names, watcher_names,
+        card_start_at, card_due_at, column_title, created_by_name, assignee_names, watcher_names,
         label_names, label_colors, checklist_total, checklist_done, comment_count
       ) VALUES (
         ${args.sprintId}, ${args.boardId}, ${card.title}, ${card.description ?? ''},
-        ${card.priority ?? null}, ${card.due_at ?? null}, ${doneColTitle},
+        ${card.priority ?? null}, ${card.start_at ?? null}, ${card.due_at ?? null}, ${doneColTitle},
         ${card.creator_name ?? null},
         ${card.assignee_names as string[]}, ${card.watcher_names as string[]},
         ${card.label_names as string[]}, ${card.label_colors as string[]},

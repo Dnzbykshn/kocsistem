@@ -246,6 +246,7 @@ export interface Database {
           card_title: string;
           card_description: string;
           card_priority: string | null;
+          card_start_at: string | null;
           card_due_at: string | null;
           column_title: string;
           created_by_name: string | null;
@@ -265,6 +266,7 @@ export interface Database {
           card_title: string;
           card_description?: string;
           card_priority?: string | null;
+          card_start_at?: string | null;
           card_due_at?: string | null;
           column_title?: string;
           created_by_name?: string | null;

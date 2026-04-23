@@ -366,6 +366,7 @@ create table if not exists public.sprint_archived_cards (
   card_title        text not null,
   card_description  text not null default '',
   card_priority     text,
+  card_start_at     timestamptz,
   card_due_at       timestamptz,
   column_title      text not null default 'Done',
   created_by_name   text,

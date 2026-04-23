@@ -229,6 +229,7 @@ export function SprintArchiveModal({
                           <th style={thStyle}>Task</th>
                           <th style={thStyle}>Assignees</th>
                           <th style={thStyle}>Watchers</th>
+                          <th style={thStyle}>Start Date</th>
                           <th style={thStyle}>Due Date</th>
                           <th style={thStyle}>Labels</th>
                           <th style={thStyle}>Priority</th>
@@ -287,6 +288,26 @@ export function SprintArchiveModal({
                                     </span>
                                   ))}
                                 </div>
+                              ) : (
+                                <span style={{ color: "var(--ink-4)" }}>—</span>
+                              )}
+                            </td>
+                            <td style={tdStyle}>
+                              {card.card_start_at ? (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    fontSize: 11.5,
+                                  }}
+                                >
+                                  {I.calendar}
+                                  {new Date(card.card_start_at).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </span>
                               ) : (
                                 <span style={{ color: "var(--ink-4)" }}>—</span>
                               )}
