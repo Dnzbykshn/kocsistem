@@ -174,6 +174,7 @@ export async function updateCard(
     priority?: CardPriority | null;
     due_at?: string | null;
     start_at?: string | null;
+    story_points?: number | null;
   },
   context?: { boardId: string }
 ) {
@@ -195,6 +196,8 @@ export async function updateCard(
     await db`UPDATE cards SET due_at = ${patch.due_at ?? null} WHERE id = ${cardId}`;
   if ("start_at" in patch)
     await db`UPDATE cards SET start_at = ${patch.start_at ?? null} WHERE id = ${cardId}`;
+  if ("story_points" in patch)
+    await db`UPDATE cards SET story_points = ${patch.story_points ?? null} WHERE id = ${cardId}`;
 
   if (context?.boardId && current) {
     const { boardId } = context;
@@ -537,6 +540,11 @@ export async function completeSprint(args: {
       ) AS assignee_names,
       COALESCE(
         ARRAY(
+          SELECT ca.user_id FROM card_assignees ca WHERE ca.card_id = c.id
+        ), '{}'
+      ) AS assignee_ids,
+      COALESCE(
+        ARRAY(
           SELECT p.name FROM card_watchers cw JOIN profiles p ON p.id = cw.user_id WHERE cw.card_id = c.id
         ), '{}'
       ) AS watcher_names,
@@ -563,16 +571,16 @@ export async function completeSprint(args: {
     await db`
       INSERT INTO sprint_archived_cards (
         sprint_id, board_id, card_title, card_description, card_priority,
-        card_start_at, card_due_at, column_title, created_by_name, assignee_names, watcher_names,
-        label_names, label_colors, checklist_total, checklist_done, comment_count
+        card_start_at, card_due_at, column_title, created_by_name, assignee_names, assignee_ids, watcher_names,
+        label_names, label_colors, checklist_total, checklist_done, comment_count, story_points
       ) VALUES (
         ${args.sprintId}, ${args.boardId}, ${card.title}, ${card.description ?? ''},
         ${card.priority ?? null}, ${card.start_at ?? null}, ${card.due_at ?? null}, ${doneColTitle},
         ${card.creator_name ?? null},
-        ${card.assignee_names as string[]}, ${card.watcher_names as string[]},
+        ${card.assignee_names as string[]}, ${card.assignee_ids as string[]}, ${card.watcher_names as string[]},
         ${card.label_names as string[]}, ${card.label_colors as string[]},
         ${Number(card.checklist_total)}, ${Number(card.checklist_done_count)},
-        ${Number(card.comment_total)}
+        ${Number(card.comment_total)}, ${card.story_points ?? null}
       )
     `;
   }

@@ -139,6 +139,7 @@ export interface Database {
           position: string;
           created_by: string | null;
           created_at: string;
+          story_points: number | null;
         };
         Insert: {
           id?: string;
@@ -151,6 +152,7 @@ export interface Database {
           due_at?: string | null;
           position: string;
           created_by?: string | null;
+          story_points?: number | null;
         };
         Update: Partial<{
           title: string;
@@ -160,6 +162,7 @@ export interface Database {
           due_at: string | null;
           position: string;
           column_id: string;
+          story_points: number | null;
         }>;
       };
       card_labels: {
@@ -265,12 +268,14 @@ export interface Database {
           column_title: string;
           created_by_name: string | null;
           assignee_names: string[];
+          assignee_ids: string[];
           watcher_names: string[];
           label_names: string[];
           label_colors: string[];
           checklist_total: number;
           checklist_done: number;
           comment_count: number;
+          story_points: number | null;
           completed_at: string;
         };
         Insert: {
@@ -285,12 +290,14 @@ export interface Database {
           column_title?: string;
           created_by_name?: string | null;
           assignee_names?: string[];
+          assignee_ids?: string[];
           watcher_names?: string[];
           label_names?: string[];
           label_colors?: string[];
           checklist_total?: number;
           checklist_done?: number;
           comment_count?: number;
+          story_points?: number | null;
         };
         Update: never;
       };

@@ -614,6 +614,47 @@ export function CardModal({ cardId, boardId, boardMembers, allLabels, columns, o
               ))}
             </Menu>
 
+            <Menu
+              trigger={({ setOpen }) => (
+                <SideBtn icon={<span style={{ fontSize: 12, fontWeight: 700 }}>SP</span>} onClick={() => setOpen((o) => !o)}>
+                  {card.story_points != null ? `Story Points — ${card.story_points}` : "Story Points"}
+                </SideBtn>
+              )}
+            >
+              {([1, 2, 3, 5, 8, 13] as number[]).map((pts) => (
+                <button
+                  key={pts}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateCard.mutate({
+                      cardId,
+                      patch: { story_points: card.story_points === pts ? null : pts },
+                    });
+                  }}
+                  style={popoverItem}
+                >
+                  <span
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 5,
+                      background: "var(--surface-2)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "var(--ink-2)",
+                    }}
+                  >
+                    {pts}
+                  </span>
+                  <span style={{ flex: 1 }}>{pts === 1 ? "Trivial" : pts === 2 ? "Easy" : pts === 3 ? "Medium" : pts === 5 ? "Hard" : pts === 8 ? "Very Hard" : "Epic"}</span>
+                  {card.story_points === pts && <span style={{ color: "var(--accent)" }}>{I.check}</span>}
+                </button>
+              ))}
+            </Menu>
+
             <SidebarTitle style={{ marginTop: 18 }}>Move to column</SidebarTitle>
             <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "0 4px" }}>
               {columns.map((c) => (

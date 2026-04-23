@@ -202,6 +202,12 @@ export function SprintArchiveModal({
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                       {I.check} {detail.cards.length} tasks completed
                     </span>
+                    {detail.cards.some((c) => c.story_points != null) && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <span style={{ fontWeight: 700, color: "var(--accent)", fontSize: 12 }}>SP</span>
+                        {detail.cards.reduce((sum, c) => sum + (c.story_points ?? 0), 0)} points
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -233,6 +239,7 @@ export function SprintArchiveModal({
                           <th style={thStyle}>Due Date</th>
                           <th style={thStyle}>Labels</th>
                           <th style={thStyle}>Priority</th>
+                          <th style={thStyle}>Story Points</th>
                           <th style={thStyle}>Checklist</th>
                         </tr>
                       </thead>
@@ -370,6 +377,28 @@ export function SprintArchiveModal({
                               {card.card_priority ? (
                                 <span style={priorityStyle(card.card_priority)}>
                                   {card.card_priority.toUpperCase()}
+                                </span>
+                              ) : (
+                                <span style={{ color: "var(--ink-4)" }}>—</span>
+                              )}
+                            </td>
+                            <td style={tdStyle}>
+                              {card.story_points != null ? (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    width: 26,
+                                    height: 26,
+                                    borderRadius: 6,
+                                    background: "color-mix(in oklab, var(--accent) 14%, transparent)",
+                                    color: "var(--accent)",
+                                    fontWeight: 700,
+                                    fontSize: 12,
+                                  }}
+                                >
+                                  {card.story_points}
                                 </span>
                               ) : (
                                 <span style={{ color: "var(--ink-4)" }}>—</span>

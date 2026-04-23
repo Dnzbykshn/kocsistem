@@ -107,6 +107,7 @@ export async function getBoardDetail(boardId: string): Promise<BoardDetail | nul
     position: c.position as string,
     created_by: c.created_by as string | null,
     created_at: c.created_at as string,
+    story_points: c.story_points as number | null,
     labels: (c.label_ids as string[]) ?? [],
     assignees: (c.assignee_ids as string[]) ?? [],
     watchers: (c.watcher_ids as string[]) ?? [],
@@ -206,12 +207,69 @@ export async function getCardDetail(cardId: string): Promise<CardDetail | null> 
     position: card.position as string,
     created_by: card.created_by as string | null,
     created_at: card.created_at as string,
+    story_points: card.story_points as number | null,
     labels: labelRows as unknown as CardDetail["labels"],
     assignees: assigneeRows as unknown as CardDetail["assignees"],
     watchers: watcherRows as unknown as CardDetail["watchers"],
     checklist: checklistRows as unknown as CardDetail["checklist"],
     comments,
   };
+}
+
+// ----------------------------------------------------------------------------
+// Leaderboard
+// ----------------------------------------------------------------------------
+export interface LeaderboardEntry {
+  id: string;
+  name: string;
+  initials: string;
+  color: string;
+  total_points: number;
+  active_points: number;
+  archived_points: number;
+}
+
+export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
+  const session = await auth();
+  if (!session?.user?.id) return [];
+
+  const rows = await db`
+    SELECT
+      p.id,
+      p.name,
+      p.initials,
+      p.color,
+      COALESCE(active_pts.pts, 0) AS active_points,
+      COALESCE(archive_pts.pts, 0) AS archived_points,
+      COALESCE(active_pts.pts, 0) + COALESCE(archive_pts.pts, 0) AS total_points
+    FROM profiles p
+    LEFT JOIN (
+      SELECT ca.user_id, SUM(c.story_points) AS pts
+      FROM card_assignees ca
+      JOIN cards c ON c.id = ca.card_id
+      WHERE c.story_points IS NOT NULL
+      GROUP BY ca.user_id
+    ) active_pts ON active_pts.user_id = p.id
+    LEFT JOIN (
+      SELECT uid, SUM(sac.story_points) AS pts
+      FROM sprint_archived_cards sac,
+           unnest(sac.assignee_ids) AS uid
+      WHERE sac.story_points IS NOT NULL
+      GROUP BY uid
+    ) archive_pts ON archive_pts.uid = p.id
+    WHERE COALESCE(active_pts.pts, 0) + COALESCE(archive_pts.pts, 0) > 0
+    ORDER BY total_points DESC, p.name ASC
+  `;
+
+  return rows.map((r) => ({
+    id: r.id as string,
+    name: r.name as string,
+    initials: r.initials as string,
+    color: r.color as string,
+    active_points: Number(r.active_points),
+    archived_points: Number(r.archived_points),
+    total_points: Number(r.total_points),
+  }));
 }
 
 // ----------------------------------------------------------------------------
@@ -478,6 +536,7 @@ export async function listAllCards(): Promise<ListCard[]> {
     checklist_count: Number(c.checklist_count),
     checklist_done:  Number(c.checklist_done),
     comment_count:   Number(c.comment_count),
+    story_points:    c.story_points as number | null,
     board_title:     c.board_title as string,
     board_color:     c.board_color as string,
     column_title:    c.column_title as string,

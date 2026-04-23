@@ -5,7 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { getBoardDetail, getActiveSprint, listSprintArchives, getSprintArchiveDetail } from "@/lib/queries";
+import { getBoardDetail, getActiveSprint, listSprintArchives, getSprintArchiveDetail, getLeaderboard } from "@/lib/queries";
 import {
   addCard,
   addColumn,
@@ -66,7 +66,7 @@ export function useUpdateCard(boardId: string) {
       patch,
     }: {
       cardId: string;
-      patch: { title?: string; description?: string; priority?: CardPriority | null; due_at?: string | null; start_at?: string | null };
+      patch: { title?: string; description?: string; priority?: CardPriority | null; due_at?: string | null; start_at?: string | null; story_points?: number | null };
     }) => updateCard(cardId, patch, { boardId }),
     onMutate: async ({ cardId, patch }) => {
       await qc.cancelQueries({ queryKey: key(boardId) });
@@ -487,6 +487,13 @@ export function useSprintArchiveDetail(sprintId: string | null) {
     queryKey: ["sprintArchiveDetail", sprintId],
     queryFn: () => getSprintArchiveDetail(sprintId!),
     enabled: !!sprintId,
+  });
+}
+
+export function useLeaderboard() {
+  return useQuery({
+    queryKey: ["leaderboard"],
+    queryFn: () => getLeaderboard(),
   });
 }
 

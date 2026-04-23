@@ -200,6 +200,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               onClick={() => setMobileOpen(false)}
             />
 
+            <NavItem
+              href="/leaderboard"
+              icon={I.trophy}
+              label="Leaderboard"
+              active={pathname === "/leaderboard"}
+              onClick={() => setMobileOpen(false)}
+            />
+
             {!currentBoardId ? (
               <Menu
                 align="start"

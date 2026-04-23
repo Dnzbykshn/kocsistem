@@ -6,7 +6,9 @@
       "Bash(npm run *)",
       "mcp__supabase__apply_migration",
       "Read(//mnt/c/Users/deniz/Desktop/kocsistem/**)",
-      "PowerShell(cd C:\\\\Users\\\\deniz\\\\Desktop\\\\kocsistem\\\\flowboard; npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"timeline\" })"
+      "PowerShell(cd C:\\\\Users\\\\deniz\\\\Desktop\\\\kocsistem\\\\flowboard; npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"timeline\" })",
+      "mcp__supabase__execute_sql",
+      "mcp__Neon__run_sql_transaction"
     ]
   },
   "enableAllProjectMcpServers": true,
