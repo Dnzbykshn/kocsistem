@@ -179,6 +179,14 @@ export function BoardScreen({ boardId }: { boardId: string }) {
                   size="sm"
                   variant="default"
                   onClick={() => {
+                    const doneCol = columns.find((c) => c.title.toLowerCase() === "done");
+                    const hasIncompleteCards = data.cards.some((c) => c.column_id !== doneCol?.id);
+                    
+                    if (hasIncompleteCards) {
+                      alert("Cannot complete sprint: not all tasks are done. All cards must be moved to the 'Done' column.");
+                      return;
+                    }
+
                     if (
                       confirm(
                         `Complete "${activeSprint.title}"?\n\nAll cards in the "Done" column will be archived and removed from the board.`

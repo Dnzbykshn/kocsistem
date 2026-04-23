@@ -514,6 +514,16 @@ export async function completeSprint(args: {
   const doneColId = doneCols[0].id as string;
   const doneColTitle = doneCols[0].title as string;
 
+  // Check if there are any incomplete cards
+  const incompleteCards = await db`
+    SELECT id FROM cards 
+    WHERE board_id = ${args.boardId} AND column_id != ${doneColId}
+    LIMIT 1
+  `;
+  if (incompleteCards.length > 0) {
+    throw new Error("All tasks must be completed before ending the sprint.");
+  }
+
   // Get all cards in Done column with their denormalized data
   const doneCards = await db`
     SELECT c.*,
