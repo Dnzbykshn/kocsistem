@@ -39,7 +39,7 @@ export function AuthForm({ mode }: Props) {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <Logo />
           <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: "-.01em" }}>
-            Flowboard
+            KocSistemBoard
           </span>
         </div>
 
@@ -209,7 +209,7 @@ export function AuthForm({ mode }: Props) {
               letterSpacing: ".08em",
             }}
           >
-            FLOWBOARD / PRODUCT
+            KOCSISTEMBOARD / PRODUCT
           </div>
           <MiniBoardPreview />
         </div>

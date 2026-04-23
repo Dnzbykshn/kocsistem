@@ -3,7 +3,7 @@ import "./globals.css";
 import { QueryProvider } from "@/components/QueryProvider";
 
 export const metadata: Metadata = {
-  title: "Flowboard",
+  title: "KocSistemBoard",
   description: "Kanban board built with Next.js + Supabase",
 };
 
