@@ -63,6 +63,6 @@ export const I = {
 export function Logo({ size = 28 }: { size?: number }) {
   const displaySize = size * 1.6;
   return (
-    <img src="/kocsistemlogo.svg" alt="KoçSistem Logo" style={{ height: displaySize, width: 'auto', objectFit: 'contain' }} />
+    <img src="/kocsistemlogo.svg" alt="KoçSistem Logo" style={{ height: displaySize, width: 'auto', objectFit: 'contain', flexShrink: 0, display: 'block' }} />
   );
 }
