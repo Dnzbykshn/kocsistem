@@ -110,9 +110,8 @@ export function useDeleteCard(boardId: string) {
       );
       return { prev };
     },
-    onError: (e, _v, ctx) => {
+    onError: (_e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(key(boardId), ctx.prev);
-      alert("Silme hatası: " + (e instanceof Error ? e.message : String(e)));
     },
     onSettled: () => qc.invalidateQueries({ queryKey: key(boardId) }),
   });
