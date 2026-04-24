@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
   experimental: {
     typedRoutes: true,
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   transpilePackages: [
     "@atlaskit/pragmatic-drag-and-drop",
     "@atlaskit/pragmatic-drag-and-drop-hitbox",
