@@ -57,27 +57,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
-      {/* Mobile top bar */}
-      <div className="mobile-bar">
-        <button
-          aria-label="Open menu"
-          onClick={() => setMobileOpen(true)}
-          style={{
-            background: "transparent",
-            border: 0,
-            color: "var(--ink)",
-            cursor: "pointer",
-            padding: 6,
-          }}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M3 6h18M3 12h18M3 18h18" />
-          </svg>
-        </button>
-        <Logo size={22} />
-        <div style={{ marginLeft: "auto" }}>{me && <Avatar user={me} size={26} />}</div>
-      </div>
-
       {/* Backdrop for mobile drawer */}
       {mobileOpen && (
         <div
@@ -390,6 +369,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        {/* Mobile top bar */}
+        <div className="mobile-bar">
+          <button
+            aria-label="Open menu"
+            onClick={() => setMobileOpen(true)}
+            style={{
+              background: "transparent",
+              border: 0,
+              color: "var(--ink)",
+              cursor: "pointer",
+              padding: 6,
+            }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+          </button>
+          <Logo size={22} />
+          <div style={{ marginLeft: "auto" }}>{me && <Avatar user={me} size={26} />}</div>
+        </div>
         {children}
       </main>
 
