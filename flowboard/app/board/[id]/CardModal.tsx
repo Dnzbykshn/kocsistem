@@ -7,7 +7,7 @@ import React, { useEffect, useState } from "react";
 import { Avatar, AvatarStack, Button, Chip, InlineEdit, Menu, MenuItem, Textarea, Input } from "@/components/ui";
 import { I, Icon } from "@/components/Icons";
 import { useMe } from "@/hooks/useMe";
-import { useCardDetail, useAddChecklist, useToggleChecklist, useDeleteChecklist, useAddComment, useCardActivities } from "@/hooks/useCard";
+import { useCardDetail, useAddChecklist, useToggleChecklist, useDeleteChecklist, useAddComment, useDeleteComment, useCardActivities } from "@/hooks/useCard";
 import { useDeleteCard, useToggleCardAssignee, useToggleCardLabel, useUpdateCard, useMoveCard, useToggleCardWatcher } from "@/hooks/useBoard";
 import type { Column, Label, Profile } from "@/types/domain";
 import type { CardPriority } from "@/types/database";
@@ -35,6 +35,7 @@ export function CardModal({ cardId, boardId, boardMembers, allLabels, columns, o
   const toggleChecklist = useToggleChecklist(cardId, boardId);
   const deleteChecklist = useDeleteChecklist(cardId, boardId);
   const addComment = useAddComment(cardId, boardId);
+  const delComment = useDeleteComment(cardId, boardId);
 
   const [comment, setComment] = useState("");
   const [checkText, setCheckText] = useState("");
@@ -526,16 +527,46 @@ export function CardModal({ cardId, boardId, boardMembers, allLabels, columns, o
                       <div key={c.id} style={{ display: "flex", gap: 10 }}>
                         {c.author && <Avatar user={c.author} size={28} />}
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12.5, color: "var(--ink-2)", marginBottom: 3 }}>
-                            <b style={{ color: "var(--ink)", fontWeight: 600 }}>
-                              {c.author?.name ?? "Unknown"}
-                            </b>
-                            <span
-                              className="mono"
-                              style={{ color: "var(--ink-4)", marginLeft: 8, fontSize: 11 }}
-                            >
-                              {relativeTime(c.created_at)}
-                            </span>
+                          <div style={{ fontSize: 12.5, color: "var(--ink-2)", marginBottom: 3, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <div>
+                              <b style={{ color: "var(--ink)", fontWeight: 600 }}>
+                                {c.author?.name ?? "Unknown"}
+                              </b>
+                              <span
+                                className="mono"
+                                style={{ color: "var(--ink-4)", marginLeft: 8, fontSize: 11 }}
+                              >
+                                {relativeTime(c.created_at)}
+                              </span>
+                            </div>
+                            {me && c.author_id === me.id && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm("Delete this comment?")) {
+                                    delComment.mutate(c.id);
+                                  }
+                                }}
+                                title="Delete comment"
+                                style={{
+                                  background: "transparent",
+                                  border: 0,
+                                  cursor: "pointer",
+                                  color: "var(--ink-4)",
+                                  padding: "2px 4px",
+                                  borderRadius: 4,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  transition: "color .15s",
+                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--red, #e53e3e)"; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--ink-4)"; }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                                </svg>
+                              </button>
+                            )}
                           </div>
                           <div
                             style={{

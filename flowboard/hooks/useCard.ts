@@ -10,6 +10,7 @@ import {
   addChecklistItem,
   addComment,
   deleteChecklistItem,
+  deleteComment,
   toggleChecklistItem,
 } from "@/lib/mutations";
 import type { CardDetail } from "@/types/domain";
@@ -109,6 +110,19 @@ export function useAddComment(cardId: string, boardId: string) {
 
       return addComment({ cardId, boardId, text, attachment });
     },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["card", cardId] });
+      qc.invalidateQueries({ queryKey: ["board", boardId] });
+      qc.invalidateQueries({ queryKey: ["activity"] });
+      qc.invalidateQueries({ queryKey: ["cardActivities", cardId] });
+    },
+  });
+}
+
+export function useDeleteComment(cardId: string, boardId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (commentId: string) => deleteComment(commentId),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["card", cardId] });
       qc.invalidateQueries({ queryKey: ["board", boardId] });

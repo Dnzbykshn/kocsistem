@@ -463,6 +463,15 @@ export async function addComment(args: {
   `;
 }
 
+export async function deleteComment(commentId: string) {
+  const userId = await requireUser();
+  // Only the author can delete their comment
+  await db`
+    DELETE FROM comments
+    WHERE id = ${commentId} AND author_id = ${userId}
+  `;
+}
+
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 // Labels

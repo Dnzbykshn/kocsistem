@@ -13,6 +13,7 @@ export function getR2Client(): S3Client {
       accessKeyId: process.env.R2_ACCESS_KEY_ID!,
       secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
     },
+    forcePathStyle: true,
   });
 
   if (process.env.NODE_ENV !== "production") globalForR2.r2 = client;
