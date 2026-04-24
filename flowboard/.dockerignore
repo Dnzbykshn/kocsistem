@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.gitignore
+.env.local
+.env*.local
+README.md
+Dockerfile
+docker-compose.yml
+.dockerignore
+tsc_errors.txt
+tsc_output.txt
