@@ -816,31 +816,36 @@ export function CardModal({ cardId, boardId, boardMembers, allLabels, columns, o
                 </SideBtn>
               )}
             >
-              {(["high", "med", "low"] as CardPriority[]).map((p) => (
-                <button
-                  key={p}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    updateCard.mutate({
-                      cardId,
-                      patch: { priority: card.priority === p ? null : p },
-                    });
-                  }}
-                  style={popoverItem}
-                >
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background:
-                        p === "high" ? "var(--err)" : p === "med" ? "var(--warn)" : "var(--ok)",
-                    }}
-                  />
-                  <span style={{ flex: 1 }}>{p}</span>
-                  {card.priority === p && <span style={{ color: "var(--accent)" }}>{I.check}</span>}
-                </button>
-              ))}
+              {({ setOpen }) => (
+                <>
+                  {(["high", "med", "low"] as CardPriority[]).map((p) => (
+                    <button
+                      key={p}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpen(false);
+                        updateCard.mutate({
+                          cardId,
+                          patch: { priority: card.priority === p ? null : p },
+                        });
+                      }}
+                      style={popoverItem}
+                    >
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          background:
+                            p === "high" ? "var(--err)" : p === "med" ? "var(--warn)" : "var(--ok)",
+                        }}
+                      />
+                      <span style={{ flex: 1 }}>{p}</span>
+                      {card.priority === p && <span style={{ color: "var(--accent)" }}>{I.check}</span>}
+                    </button>
+                  ))}
+                </>
+              )}
             </Menu>
 
             <Menu
