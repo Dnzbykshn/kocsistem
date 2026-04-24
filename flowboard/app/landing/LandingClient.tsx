@@ -133,15 +133,7 @@ export default function LandingClient() {
                   {t("Nasıl çalıştığını gör", "See how it works")}
                 </a>
               </div>
-              <div className="hero-mini-note">
-                <span className="avatars">
-                  <span>DB</span><span>AL</span><span>YE</span><span>TK</span>
-                </span>
-                {t(
-                  "120+ mini yazılım ekibi kullanıyor · Kredi kartı gerekmiyor",
-                  "120+ tiny teams shipping with it · No credit card required"
-                )}
-              </div>
+
             </div>
 
             <div className="hero-stage" aria-hidden="true">
