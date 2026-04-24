@@ -209,6 +209,11 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 900px) {
   .auth-grid { grid-template-columns: 1fr !important; }
   .auth-aside { display: none !important; }
+  .auth-left-col {
+    justify-content: flex-start !important;
+    gap: 32px;
+    padding: 32px 24px !important;
+  }
 }
 
 /* ------------------------------------------------------------------ */

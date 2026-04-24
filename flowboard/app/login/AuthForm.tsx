@@ -31,6 +31,7 @@ export function AuthForm({ mode }: Props) {
       className="auth-grid"
     >
       <div
+        className="auth-left-col"
         style={{
           display: "flex",
           flexDirection: "column",
