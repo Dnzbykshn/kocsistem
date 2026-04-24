@@ -27,7 +27,7 @@
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   position: relative;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .kocban-landing *, .kocban-landing *::before, .kocban-landing *::after { box-sizing: border-box; }
@@ -266,7 +266,7 @@
 /* scrolly */
 .kocban-landing .scrolly-inner { display: grid; grid-template-columns: 1fr 1.1fr; gap: 72px; align-items: flex-start; }
 @media (max-width: 980px) { .kocban-landing .scrolly-inner { grid-template-columns: 1fr; gap: 32px; } }
-.kocban-landing .scrolly-steps { display: flex; flex-direction: column; gap: 80px; padding: 40px 0; }
+.kocban-landing .scrolly-steps { display: flex; flex-direction: column; gap: 80px; padding: 40px 0 50vh; }
 .kocban-landing .scrolly-step {
   padding: 32px 28px; border: 2px dashed var(--line-strong);
   border-radius: 20px; background: color-mix(in srgb, var(--paper-2) 40%, transparent);

@@ -44,23 +44,24 @@ export default function LandingClient() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Scrollytelling
+  // Scrollytelling — scroll-based (more reliable than IntersectionObserver)
   useEffect(() => {
-    const steps = stepsRef.current?.querySelectorAll<HTMLDivElement>(".scrolly-step");
-    if (!steps || !steps.length) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            const idx = (e.target as HTMLElement).dataset.step;
-            if (idx) setActiveStep(Number(idx));
-          }
-        });
-      },
-      { rootMargin: "-45% 0px -45% 0px", threshold: 0 }
-    );
-    steps.forEach((s) => io.observe(s));
-    return () => io.disconnect();
+    const handleScroll = () => {
+      const steps = stepsRef.current?.querySelectorAll<HTMLDivElement>(".scrolly-step");
+      if (!steps?.length) return;
+      const mid = window.innerHeight / 2;
+      let best = 1;
+      steps.forEach((step) => {
+        const rect = step.getBoundingClientRect();
+        if (rect.top + rect.height / 2 < mid + 60) {
+          best = Number(step.dataset.step);
+        }
+      });
+      setActiveStep(best);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   // KAI chat loop
