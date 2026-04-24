@@ -282,6 +282,12 @@ export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
       GROUP BY uid
     ) archive_pts ON archive_pts.uid = p.id
     WHERE COALESCE(active_pts.pts, 0) + COALESCE(archive_pts.pts, 0) > 0
+      AND EXISTS (
+        SELECT 1 FROM board_members bm1
+        JOIN board_members bm2 ON bm1.board_id = bm2.board_id
+        WHERE bm1.user_id = p.id
+          AND bm2.user_id = ${session.user.id}
+      )
     ORDER BY total_points DESC, p.name ASC
   `;
 
