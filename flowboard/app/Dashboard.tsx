@@ -76,8 +76,9 @@ export function Dashboard() {
 
   return (
     <AppShell>
-      <div style={{ maxWidth: 1160, width: "100%", margin: "0 auto", padding: "36px 40px 80px" }}>
+      <div className="dash-page" style={{ maxWidth: 1160, width: "100%", margin: "0 auto", padding: "36px 40px 80px" }}>
         <header
+          className="dash-header"
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -117,7 +118,7 @@ export function Dashboard() {
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="dash-header-actions" style={{ display: "flex", gap: 8 }}>
             <div style={{ position: "relative" }}>
               <span
                 style={{

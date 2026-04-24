@@ -960,6 +960,7 @@ function Backdrop({ children, onClose }: { children: React.ReactNode; onClose: (
   return (
     <div
       onClick={onClose}
+      className="card-modal-backdrop"
       style={{
         position: "fixed",
         inset: 0,

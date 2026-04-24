@@ -159,7 +159,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
             {board.starred ? I.starF : I.star}
           </button>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div className="board-header-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           {/* Sprint indicator */}
           {activeSprint && (
             <div
@@ -247,6 +247,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
 
       {/* Filter + view-switcher bar */}
       <div
+        className="filter-bar"
         style={{
           display: "flex",
           alignItems: "center",
@@ -273,7 +274,7 @@ export function BoardScreen({ boardId }: { boardId: string }) {
           </ViewTab>
         </div>
 
-        <div style={{ width: 1, height: 20, background: "var(--line)", flexShrink: 0 }} />
+        <div className="filter-divider" style={{ width: 1, height: 20, background: "var(--line)", flexShrink: 0 }} />
 
         {/* Search */}
         <div style={{ position: "relative" }}>
